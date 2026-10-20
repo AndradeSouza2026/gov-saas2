@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GovSaaS - Conectado ao Supabase</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Supabase JS Client via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-slate-100 min-h-screen font-sans text-slate-800">
+
+  <!-- Modal / Barra de Configuração das Chaves do Supabase -->
+  <div id="barra-credenciais" class="bg-amber-100 border-b border-amber-300 p-2 text-xs flex flex-wrap items-center justify-between gap-2 px-4">
+    <div class="flex items-center gap-2">
+      <span class="font-bold text-amber-900">⚡ Conexão Supabase:</span>
+      <input type="text" id="cfg-url" placeholder="Sua Project URL (https://xyz.supabase.co)" class="p-1 px-2 border rounded bg-white w-64 text-xs">
+      <input type="password" id="cfg-key" placeholder="Sua Anon Public API Key" class="p-1 px-2 border rounded bg-white w-64 text-xs">
+      <button onclick="salvarConfigSupabase()" class="bg-amber-700 hover:bg-amber-800 text-white font-bold px-3 py-1 rounded">Conectar</button>
+    </div>
+    <span id="status-conexao" class="text-amber-800 font-medium">Usando dados locais temporários (Insira as chaves acima para banco real)</span>
+  </div>
+
+  <!-- Barra de Topo: Alternador de Visão -->
+  <header class="bg-slate-900 text-white p-4 shadow-md sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto flex flex-wrap justify-between items-center gap-4">
+      <div class="flex items-center gap-2">
+        <span class="bg-emerald-600 text-xs font-bold px-2.5 py-1 rounded uppercase tracking-wider">Supabase Live</span>
+        <h1 class="font-bold text-lg">ConectaPrefeitura SaaS</h1>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="mudarVisao('cidadao')" id="btn-cidadao" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg text-sm font-semibold transition">
+          📱 Visão do Cidadão (App)
+        </button>
+        <button onclick="mudarVisao('prefeitura')" id="btn-prefeitura" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm font-semibold transition">
+          🖥️ Painel da Prefeitura (Criar Serviços)
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto p-4 md:p-6">
+
+    <!-- ==================== VISÃO 1: APP DO CIDADÃO ==================== -->
+    <section id="visao-cidadao" class="max-w-md mx-auto bg-white rounded-3xl shadow-xl overflow-hidden border-4 border-slate-800">
+      <div class="bg-blue-700 text-white p-6">
+        <p class="text-xs uppercase tracking-widest text-blue-200">Prefeitura Digital</p>
+        <h2 class="text-2xl font-bold mt-1">Central do Cidadão 👋</h2>
+        <p class="text-sm text-blue-100 mt-1">Escolha qualquer serviço público abaixo:</p>
+      </div>
+
+      <div class="flex border-b">
+        <button onclick="mudarAbaApp('servicos')" id="aba-servicos" class="flex-1 py-3 text-sm font-bold text-blue-700 border-b-2 border-blue-700">Catálogo de Serviços</button>
+        <button onclick="mudarAbaApp('protocolos')" id="aba-protocolos" class="flex-1 py-3 text-sm font-medium text-slate-500">Meus Pedidos (<span id="contador-cidadao">0</span>)</button>
+      </div>
+
+      <!-- Catálogo e Formulário Dinâmico -->
+      <div id="conteudo-servicos" class="p-5">
+        <div id="lista-servicos-app" class="grid grid-cols-2 gap-3 mb-6"></div>
+
+        <!-- Formulário que se adapta a qualquer serviço -->
+        <form id="form-solicitacao" class="hidden bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3" onsubmit="enviarSolicitacao(event)">
+          <div class="flex justify-between items-center border-b pb-2">
+            <h3 id="titulo-form-servico" class="font-bold text-blue-800 text-sm">Nome do Serviço</h3>
+            <button type="button" onclick="fecharFormulario()" class="text-xs text-red-500 font-semibold">Fechar ✕</button>
+          </div>
+
+          <input type="hidden" id="servico-id-selecionado">
+
+          <!-- Dados Básicos do Cidadão -->
+          <div>
+            <label class="block text-xs font-semibold mb-1">Seu Nome Completo *</label>
+            <input type="text" id="cid-nome" required placeholder="Ex: Maria da Silva" class="w-full p-2 text-sm border rounded-lg bg-white">
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-xs font-semibold mb-1">CPF *</label>
+              <input type="text" id="cid-cpf" required placeholder="000.000.000-00" class="w-full p-2 text-sm border rounded-lg bg-white">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold mb-1">WhatsApp *</label>
+              <input type="text" id="cid-tel" required placeholder="(00) 90000-0000" class="w-full p-2 text-sm border rounded-lg bg-white">
+            </div>
+          </div>
+
+          <!-- Blocos Ativados conforme a configuração do serviço -->
+          <div id="bloco-sus" class="hidden">
+            <label class="block text-xs font-semibold text-emerald-800 mb-1">Número do Cartão SUS / NIS *</label>
+            <input type="text" id="cid-sus" placeholder="Digite o número do cartão" class="w-full p-2 text-sm border border-emerald-300 rounded-lg bg-emerald-50">
+          </div>
+
+          <div id="bloco-agenda" class="hidden grid grid-cols-2 gap-2 bg-blue-50 p-2.5 rounded-lg border border-blue-200">
+            <div>
+              <label class="block text-[11px] font-semibold text-blue-900 mb-1">Local / Unidade *</label>
+              <select id="cid-ubs" class="w-full p-1.5 text-xs border rounded bg-white">
+                <option value="Unidade Centro">Unidade Centro</option>
+                <option value="Unidade Zona Norte">Unidade Zona Norte</option>
+                <option value="Unidade Zona Sul">Unidade Zona Sul</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-blue-900 mb-1">Turno Preferido *</label>
+              <select id="cid-turno" class="w-full p-1.5 text-xs border rounded bg-white">
+                <option value="Manhã">Manhã (08h-12h)</option>
+                <option value="Tarde">Tarde (13h-17h)</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="bloco-endereco" class="hidden">
+            <label class="block text-xs font-semibold text-amber-900 mb-1">Endereço ou Localização GPS *</label>
+            <input type="text" id="cid-endereco" placeholder="Rua, número, bairro e ponto de referência" class="w-full p-2 text-sm border border-amber-300 rounded-lg bg-amber-50">
+          </div>
+
+          <!-- Campos Personalizados Dinâmicos (Criados pela Prefeitura) -->
+          <div id="container-campos-extras" class="space-y-2"></div>
+
+          <div id="bloco-foto" class="hidden">
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Anexar Foto ou Documento</label>
+            <input type="file" id="cid-foto" class="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-slate-200 file:text-slate-800 font-semibold">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold mb-1">Descrição / Detalhes do Pedido *</label>
+            <textarea id="cid-desc" required rows="2" placeholder="Explique o que você precisa..." class="w-full p-2 text-sm border rounded-lg bg-white"></textarea>
+          </div>
+
+          <button type="submit" id="btn-enviar-form" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg text-sm shadow transition">
+            Confirmar e Gerar Protocolo
+          </button>
+        </form>
+      </div>
+
+      <!-- Aba Meus Pedidos -->
+      <div id="conteudo-protocolos" class="hidden p-5 space-y-3">
+        <div id="lista-protocolos-cidadao" class="space-y-3"></div>
+      </div>
+    </section>
+
+    <!-- ==================== VISÃO 2: PAINEL DA PREFEITURA ==================== -->
+    <section id="visao-prefeitura" class="hidden space-y-6">
+      <div class="bg-white p-6 rounded-2xl shadow-sm border flex flex-wrap justify-between items-center gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-slate-800">Painel Administrativo e Construtor de Serviços</h2>
+          <p class="text-sm text-slate-500">Crie serviços para qualquer secretaria com formulários personalizados em segundos.</p>
+        </div>
+        <button onclick="document.getElementById('modal-novo-servico').classList.remove('hidden')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow transition">
+          + Criar Qualquer Novo Serviço
+        </button>
+      </div>
+
+      <!-- Fila de Atendimento -->
+      <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+        <div class="p-4 border-b bg-slate-50 flex justify-between items-center">
+          <h3 class="font-bold text-slate-700">Solicitações Recebidas dos Cidadãos</h3>
+          <button onclick="carregarDadosDoBanco()" class="text-xs bg-slate-200 hover:bg-slate-300 px-3 py-1 rounded font-semibold text-slate-700">🔄 Atualizar Fila</button>
+        </div>
+        <div id="tabela-prefeitura" class="divide-y"></div>
+      </div>
+
+      <!-- CONSTRUTOR DE NOVOS SERVIÇOS (NO-CODE INTERNO) -->
+      <div id="modal-novo-servico" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+          <div class="flex justify-between items-center border-b pb-2">
+            <h3 class="font-bold text-lg text-slate-800">Construtor de Serviços da Prefeitura</h3>
+            <button onclick="document.getElementById('modal-novo-servico').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">✕</button>
+          </div>
+
+          <form onsubmit="criarNovoServico(event)" class="space-y-4">
+            <div class="grid grid-cols-3 gap-2">
+              <div class="col-span-2">
+                <label class="block text-xs font-bold mb-1">Nome do Serviço *</label>
+                <input type="text" id="novo-nome" required placeholder="Ex: Castração Pet, Vaga em Creche" class="w-full p-2 border rounded-lg text-sm">
+              </div>
+              <div>
+                <label class="block text-xs font-bold mb-1">Ícone (Emoji) *</label>
+                <input type="text" id="novo-icone" required value="🐶" class="w-full p-2 border rounded-lg text-sm text-center">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs font-bold mb-1">Secretaria Responsável *</label>
+                <input type="text" id="novo-secretaria" required placeholder="Ex: Educação, Meio Ambiente, CRAS" class="w-full p-2 border rounded-lg text-sm">
+              </div>
+              <div>
+                <label class="block text-xs font-bold mb-1">Tipo de Atendimento *</label>
+                <select id="novo-fluxo" class="w-full p-2 border rounded-lg text-sm bg-white">
+                  <option value="AGENDAMENTO">Com Hora Marcada (Recepcionista agenda)</option>
+                  <option value="CHAMADO">Ordem de Serviço / Análise de Pedido</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Checkboxes do que pedir ao cidadão -->
+            <div class="bg-slate-50 p-3 rounded-xl border space-y-2">
+              <p class="text-xs font-bold text-slate-700">Quais dados obrigatórios pedir ao cidadão?</p>
+              <label class="flex items-center gap-2 text-xs">
+                <input type="checkbox" id="chk-agenda" checked> Escolher Unidade de Atendimento e Turno (Manhã/Tarde)
+              </label>
+              <label class="flex items-center gap-2 text-xs">
+                <input type="checkbox" id="chk-endereco"> Exigir Endereço / Localização GPS do problema
+              </label>
+              <label class="flex items-center gap-2 text-xs">
+                <input type="checkbox" id="chk-sus"> Exigir Número do Cartão SUS ou NIS (CadÚnico)
+              </label>
+              <label class="flex items-center gap-2 text-xs">
+                <input type="checkbox" id="chk-foto" checked> Permitir envio de Foto ou Documento em Anexo
+              </label>
+            </div>
+
+            <!-- Criador de Perguntas Extras -->
+            <div class="bg-blue-50 p-3 rounded-xl border border-blue-200 space-y-1">
+              <label class="block text-xs font-bold text-blue-900">Perguntas Específicas deste Serviço (Opcional)</label>
+              <p class="text-[11px] text-blue-700">Digite as perguntas extras separadas por vírgula. O app criará os campos sozinho!</p>
+              <input type="text" id="novo-perguntas" placeholder="Ex: Nome do Animal, Peso (kg), Cão ou Gato?" class="w-full p-2 border rounded-lg text-sm bg-white mt-1">
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t">
+              <button type="button" onclick="document.getElementById('modal-novo-servico').classList.add('hidden')" class="px-4 py-2 text-sm text-slate-600">Cancelar</button>
+              <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-lg text-sm font-bold shadow">
+                Publicar Serviço no App
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    let supabaseClient = null;
+
+    let servicos = [
+      { id: 1, nome: 'Troca de Lâmpada', icone: '💡', secretaria: 'Obras', fluxo: 'CHAMADO', pede_agenda: false, pede_endereco: true, pede_sus: false, pede_foto: true, perguntas_extras: ['Número do Poste (se houver)'] },
+      { id: 2, nome: 'Consulta Dentista', icone: '🦷', secretaria: 'Saúde', fluxo: 'AGENDAMENTO', pede_agenda: true, pede_endereco: false, pede_sus: true, pede_foto: false, perguntas_extras: [] },
+      { id: 3, nome: 'Castração de Cães e Gatos', icone: '🐾', secretaria: 'Meio Ambiente', fluxo: 'AGENDAMENTO', pede_agenda: true, pede_endereco: false, pede_sus: false, pede_foto: false, perguntas_extras: ['Espécie (Cão ou Gato)', 'Peso aproximado (kg)'] },
+      { id: 4, nome: 'Vaga em Creche Municipal', icone: '👶', secretaria: 'Educação', fluxo: 'CHAMADO', pede_agenda: false, pede_endereco: true, pede_sus: false, pede_foto: true, perguntas_extras: ['Nome da Criança', 'Idade da Criança'] },
+      { id: 5, nome: 'Atendimento CRAS / Cesta Básica', icone: '🤝', secretaria: 'Assistência Social', fluxo: 'AGENDAMENTO', pede_agenda: true, pede_endereco: true, pede_sus: true, pede_foto: false, perguntas_extras: ['Quantas pessoas moram na casa?'] },
+      { id: 6, nome: 'Poda de Árvore / Limpeza', icone: '🌳', secretaria: 'Meio Ambiente', fluxo: 'CHAMADO', pede_agenda: false, pede_endereco: true, pede_sus: false, pede_foto: true, perguntas_extras: ['A árvore está encostando na fiação elétrica?'] }
+    ];
+
+    let solicitacoes = [
+      {
+        protocolo: 2001,
+        servico_nome: 'Castração de Cães e Gatos',
+        icone: '🐾',
+        secretaria: 'Meio Ambiente',
+        fluxo: 'AGENDAMENTO',
+        cidadao_nome: 'Fernanda Costa',
+        telefone: '(11) 99123-4567',
+        detalhe_extra: 'Unidade Centro • Turno: Manhã | Espécie (Cão ou Gato): Gato | Peso aproximado (kg): 4kg',
+        descricao: 'Gato macho de 1 ano, saudável.',
+        status: 'PENDENTE',
+        data_agendada: '',
+        resposta_prefeitura: ''
+      }
+    ];
+
+    // Inicialização da conexão com o Supabase
+    function inicializarSupabase() {
+      const url = localStorage.getItem('supabase_url') || '';
+      const key = localStorage.getItem('supabase_key') || '';
+      if (url && key) {
+        document.getElementById('cfg-url').value = url;
+        document.getElementById('cfg-key').value = key;
+        try {
+          supabaseClient = window.supabase.createClient(url, key);
+          document.getElementById('status-conexao').innerText = '✅ Conectado ao Supabase com sucesso!';
+          document.getElementById('status-conexao').className = 'text-emerald-700 font-bold';
+          carregarDadosDoBanco();
+          ativarRealtime();
+        } catch(e) {
+          console.error(e);
+        }
+      }
+    }
+
+    function salvarConfigSupabase() {
+      const url = document.getElementById('cfg-url').value.trim();
+      const key = document.getElementById('cfg-key').value.trim();
+      if (!url || !key) return alert('Por favor, informe a URL e a Anon Key do Supabase!');
+      localStorage.setItem('supabase_url', url);
+      localStorage.setItem('supabase_key', key);
+      inicializarSupabase();
+    }
+
+    async function carregarDadosDoBanco() {
+      if (!supabaseClient) return;
+      try {
+        const { data: srvData, error: srvErr } = await supabaseClient.from('servicos').select('*').order('id', { ascending: true });
+        if (!srvErr && srvData && srvData.length > 0) {
+          servicos = srvData;
+        }
+
+        const { data: solData, error: solErr } = await supabaseClient.from('solicitacoes').select('*').order('created_at', { ascending: true });
+        if (!solErr && solData) {
+          solicitacoes = solData;
+        }
+        renderizarTudo();
+      } catch (err) {
+        console.error('Erro ao buscar dados do Supabase:', err);
+      }
+    }
+
+    function ativarRealtime() {
+      if (!supabaseClient) return;
+      supabaseClient
+        .channel('public:solicitacoes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitacoes' }, () => {
+          carregarDadosDoBanco();
+        })
+        .subscribe();
+
+      supabaseClient
+        .channel('public:servicos')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'servicos' }, () => {
+          carregarDadosDoBanco();
+        })
+        .subscribe();
+    }
+
+    function renderizarTudo() {
+      const listaApp = document.getElementById('lista-servicos-app');
+      listaApp.innerHTML = servicos.map(s => `
+        <button onclick="abrirFormulario(${s.id})" class="p-3 bg-slate-50 hover:bg-blue-50 border hover:border-blue-400 rounded-xl text-left transition flex flex-col justify-between">
+          <div class="flex justify-between items-start w-full mb-2">
+            <span class="text-2xl">${s.icone || '🏛️'}</span>
+            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">${s.fluxo === 'AGENDAMENTO' ? 'AGENDA' : 'PROTOCOLO'}</span>
+          </div>
+          <div>
+            <p class="font-bold text-xs text-slate-800 leading-tight">${s.nome}</p>
+            <p class="text-[10px] text-slate-500 mt-0.5">${s.secretaria}</p>
+          </div>
+        </button>
+      `).join('');
+
+      document.getElementById('contador-cidadao').innerText = solicitacoes.length;
+      document.getElementById('lista-protocolos-cidadao').innerHTML = solicitacoes.slice().reverse().map(sol => `
+        <div class="p-4 border rounded-xl bg-slate-50 space-y-2">
+          <div class="flex justify-between items-start">
+            <span class="font-bold text-sm">${sol.icone || '📋'} ${sol.servico_nome || sol.servico}</span>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">${sol.status}</span>
+          </div>
+          <p class="text-xs text-slate-600"><strong>Protocolo #${sol.protocolo}</strong> • ${sol.detalhe_extra || sol.detalheExtra || ''}</p>
+          <p class="text-xs text-slate-700 bg-white p-2 rounded border">"${sol.descricao}"</p>
+          ${sol.data_agendada ? `<div class="bg-emerald-50 border border-emerald-300 p-2 rounded text-xs text-emerald-900"><strong>📅 Confirmado para:</strong> ${sol.data_agendada}</div>` : ''}
+          ${sol.resposta_prefeitura ? `<div class="bg-blue-50 border border-blue-200 p-2 rounded text-xs text-blue-900"><strong>💬 Prefeitura:</strong> ${sol.resposta_prefeitura}</div>` : ''}
+        </div>
+      `).join('');
+
+      document.getElementById('tabela-prefeitura').innerHTML = solicitacoes.slice().reverse().map(sol => `
+        <div class="p-5 flex flex-col md:flex-row justify-between gap-4">
+          <div class="space-y-1 max-w-xl">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold bg-slate-200 px-2 py-0.5 rounded">#${sol.protocolo}</span>
+              <span class="text-xs font-bold text-blue-700">${sol.secretaria}</span>
+              <span class="text-xs font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-900">${sol.status}</span>
+            </div>
+            <h4 class="font-bold text-base">${sol.icone || '📋'} ${sol.servico_nome || sol.servico} — <span class="font-normal text-slate-600">${sol.cidadao_nome || sol.cidadao} (${sol.telefone})</span></h4>
+            <p class="text-xs text-slate-600 font-medium">${sol.detalhe_extra || sol.detalheExtra || ''}</p>
+            <p class="text-sm text-slate-800 bg-slate-100 p-2 rounded mt-1">"${sol.descricao}"</p>
+          </div>
+          <div class="bg-slate-100 p-3 rounded-xl border min-w-[280px] space-y-2">
+            ${sol.fluxo === 'AGENDAMENTO' ? `
+              <input type="text" id="agenda-${sol.protocolo}" value="${sol.data_agendada || ''}" placeholder="Data e Hora (Ex: 24/10 às 14h)" class="w-full p-1.5 text-xs border rounded bg-white">
+            ` : ''}
+            <input type="text" id="resp-${sol.protocolo}" value="${sol.resposta_prefeitura || ''}" placeholder="Resposta ou orientação ao cidadão..." class="w-full p-1.5 text-xs border rounded bg-white">
+            <div class="flex gap-2">
+              <button onclick="atualizarChamado(${sol.protocolo}, '${sol.fluxo === 'AGENDAMENTO' ? 'AGENDADO' : 'CONCLUIDO'}')" class="flex-1 bg-emerald-600 text-white text-xs font-bold py-1.5 px-2 rounded">
+                ${sol.fluxo === 'AGENDAMENTO' ? 'Confirmar Horário' : 'Concluir Atendimento'}
+              </button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function abrirFormulario(idServico) {
+      const s = servicos.find(item => item.id == idServico);
+      document.getElementById('servico-id-selecionado').value = s.id;
+      document.getElementById('titulo-form-servico').innerText = `${s.icone} ${s.nome} (${s.secretaria})`;
+      document.getElementById('form-solicitacao').classList.remove('hidden');
+
+      const pedeAgenda = s.pede_agenda ?? s.pedeAgenda;
+      const pedeEndereco = s.pede_endereco ?? s.pedeEndereco;
+      const pedeSus = s.pede_sus ?? s.pedeSus;
+      const pedeFoto = s.pede_foto ?? s.pedeFoto;
+      const perguntas = s.perguntas_extras ?? s.perguntasExtras ?? [];
+
+      document.getElementById('bloco-agenda').classList.toggle('hidden', !pedeAgenda);
+      document.getElementById('bloco-endereco').classList.toggle('hidden', !pedeEndereco);
+      document.getElementById('bloco-sus').classList.toggle('hidden', !pedeSus);
+      document.getElementById('bloco-foto').classList.toggle('hidden', !pedeFoto);
+
+      const containerExtras = document.getElementById('container-campos-extras');
+      containerExtras.innerHTML = (perguntas || []).map(pergunta => `
+        <div>
+          <label class="block text-xs font-semibold text-blue-900 mb-1">${pergunta} *</label>
+          <input type="text" data-pergunta="${pergunta}" required class="campo-extra-dinamico w-full p-2 text-sm border border-blue-300 rounded-lg bg-white" placeholder="Responda aqui...">
+        </div>
+      `).join('');
+    }
+
+    function fecharFormulario() {
+      document.getElementById('form-solicitacao').classList.add('hidden');
+    }
+
+    async function enviarSolicitacao(e) {
+      e.preventDefault();
+      const idServico = parseInt(document.getElementById('servico-id-selecionado').value);
+      const s = servicos.find(item => item.id == idServico);
+
+      const pedeAgenda = s.pede_agenda ?? s.pedeAgenda;
+      const pedeEndereco = s.pede_endereco ?? s.pedeEndereco;
+      const pedeSus = s.pede_sus ?? s.pedeSus;
+
+      let partesDetalhe = [];
+      let unidadeAtendimento = null;
+      let turno = null;
+      let endereco = null;
+      let sus = null;
+      let respostasExtras = {};
+
+      if (pedeAgenda) {
+        unidadeAtendimento = document.getElementById('cid-ubs').value;
+        turno = document.getElementById('cid-turno').value;
+        partesDetalhe.push(`${unidadeAtendimento} (${turno})`);
+      }
+      if (pedeEndereco) {
+        endereco = document.getElementById('cid-endereco').value;
+        partesDetalhe.push(`Local: ${endereco}`);
+      }
+      if (pedeSus) {
+        sus = document.getElementById('cid-sus').value;
+        partesDetalhe.push(`SUS/NIS: ${sus}`);
+      }
+
+      document.querySelectorAll('.campo-extra-dinamico').forEach(input => {
+        const pergunta = input.getAttribute('data-pergunta');
+        respostasExtras[pergunta] = input.value;
+        partesDetalhe.push(`${pergunta}: ${input.value}`);
+      });
+
+      const novaSolicitacao = {
+        servico_id: s.id,
+        servico_nome: s.nome,
+        icone: s.icone,
+        secretaria: s.secretaria,
+        fluxo: s.fluxo,
+        cidadao_nome: document.getElementById('cid-nome').value,
+        cpf: document.getElementById('cid-cpf').value,
+        telefone: document.getElementById('cid-tel').value,
+        cartao_sus: sus,
+        unidade_atendimento: unidadeAtendimento,
+        turno: turno,
+        endereco: endereco,
+        respostas_extras: respostasExtras,
+        detalhe_extra: partesDetalhe.join(' | ') || 'Solicitação Geral',
+        descricao: document.getElementById('cid-desc').value,
+        status: 'PENDENTE'
+      };
+
+      if (supabaseClient) {
+        const { data, error } = await supabaseClient.from('solicitacoes').insert([novaSolicitacao]).select();
+        if (error) {
+          alert('Erro ao gravar no Supabase: ' + error.message);
+          return;
+        }
+        await carregarDadosDoBanco();
+      } else {
+        novaSolicitacao.protocolo = 2000 + solicitacoes.length + 1;
+        solicitacoes.push(novaSolicitacao);
+        renderizarTudo();
+      }
+
+      e.target.reset();
+      fecharFormulario();
+      mudarAbaApp('protocolos');
+    }
+
+    async function criarNovoServico(e) {
+      e.preventDefault();
+      const perguntasRaw = document.getElementById('novo-perguntas').value;
+      const listaPerguntas = perguntasRaw ? perguntasRaw.split(',').map(p => p.trim()).filter(Boolean) : [];
+
+      const novoServico = {
+        nome: document.getElementById('novo-nome').value,
+        icone: document.getElementById('novo-icone').value,
+        secretaria: document.getElementById('novo-secretaria').value,
+        fluxo: document.getElementById('novo-fluxo').value,
+        pede_agenda: document.getElementById('chk-agenda').checked,
+        pede_endereco: document.getElementById('chk-endereco').checked,
+        pede_sus: document.getElementById('chk-sus').checked,
+        pede_foto: document.getElementById('chk-foto').checked,
+        perguntas_extras: listaPerguntas
+      };
+
+      if (supabaseClient) {
+        const { data, error } = await supabaseClient.from('servicos').insert([novoServico]).select();
+        if (error) {
+          alert('Erro ao criar serviço no Supabase: ' + error.message);
+          return;
+        }
+        await carregarDadosDoBanco();
+      } else {
+        novoServico.id = servicos.length + 1;
+        servicos.push(novoServico);
+        renderizarTudo();
+      }
+
+      e.target.reset();
+      document.getElementById('modal-novo-servico').classList.add('hidden');
+      alert('Serviço criado com formulário personalizado! Teste agora na Visão do Cidadão.');
+    }
+
+    async function atualizarChamado(protocolo, novoStatus) {
+      const inputAgenda = document.getElementById(`agenda-${protocolo}`);
+      const dataAgendada = inputAgenda ? inputAgenda.value : '';
+      const respostaPrefeitura = document.getElementById(`resp-${protocolo}`).value;
+
+      if (supabaseClient) {
+        const { error } = await supabaseClient
+          .from('solicitacoes')
+          .update({
+            status: novoStatus,
+            data_agendada: dataAgendada,
+            resposta_prefeitura: respostaPrefeitura
+          })
+          .eq('protocolo', protocolo);
+
+        if (error) {
+          alert('Erro ao atualizar no Supabase: ' + error.message);
+          return;
+        }
+        await carregarDadosDoBanco();
+      } else {
+        const sol = solicitacoes.find(s => s.protocolo === protocolo);
+        sol.status = novoStatus;
+        if (inputAgenda) sol.data_agendada = dataAgendada;
+        sol.resposta_prefeitura = respostaPrefeitura;
+        renderizarTudo();
+      }
+    }
+
+    function mudarVisao(visao) {
+      document.getElementById('visao-cidadao').classList.toggle('hidden', visao !== 'cidadao');
+      document.getElementById('visao-prefeitura').classList.toggle('hidden', visao !== 'prefeitura');
+      document.getElementById('btn-cidadao').className = visao === 'cidadao' ? 'bg-blue-600 px-4 py-2 rounded-lg text-sm font-semibold' : 'bg-slate-700 px-4 py-2 rounded-lg text-sm font-semibold';
+      document.getElementById('btn-prefeitura').className = visao === 'prefeitura' ? 'bg-blue-600 px-4 py-2 rounded-lg text-sm font-semibold' : 'bg-slate-700 px-4 py-2 rounded-lg text-sm font-semibold';
+    }
+
+    function mudarAbaApp(aba) {
+      document.getElementById('conteudo-servicos').classList.toggle('hidden', aba !== 'servicos');
+      document.getElementById('conteudo-protocolos').classList.toggle('hidden', aba !== 'protocolos');
+    }
+
+    inicializarSupabase();
+    renderizarTudo();
+  </script>
+</body>
+</html>
+

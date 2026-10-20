@@ -1,0 +1,13 @@
+# Vercel & Deploy
+.vercel/
+
+# Credenciais e Arquivos Locais Sensíveis
+senha supabase.txt
+*.env
+*.env.*
+*.log
+
+# Dependências e SO
+node_modules/
+.DS_Store
+Thumbs.db

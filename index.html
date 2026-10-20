@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ConectaPrefeitura SaaS - Sul do Espírito Santo (ES)</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2226%22 font-size=%2224%22>🏛️</text></svg>">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Supabase JS Client v2 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Leaflet CSS & JS para OpenStreetMap -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    /* Estilos do mapa */
+    #mapa-zeladoria {
+      height: 220px;
+      width: 100%;
+      border-radius: 1rem;
+      z-index: 10;
+    }
+    .leaflet-container {
+      font-family: inherit;
+    }
+    /* Estilização para o seletor com seta visível */
+    .select-seta {
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.6rem center;
+      background-size: 1.1em;
+      padding-right: 2.2rem !important;
+    }
+    .select-seta-dark {
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%231e3a8a'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.6rem center;
+      background-size: 1.1em;
+      padding-right: 2.2rem !important;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen font-sans text-slate-800 antialiased selection:bg-blue-600 selection:text-white">
+
+  <!-- ==================== HEADER PRINCIPAL (CONECTAPREFEITURA SAAS) ==================== -->
+  <header class="bg-slate-900 text-white sticky top-0 z-50 shadow-md">
+    <div class="max-w-7xl mx-auto px-4 py-2.5 flex flex-wrap justify-between items-center gap-3">
+      
+      <!-- Logo e Seletor com Seta no Topo -->
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2">
+          <span class="text-2xl">🏛️</span>
+          <div>
+            <h1 class="font-black text-lg leading-tight tracking-tight">ConectaPrefeitura <span class="text-blue-400 font-semibold text-xs px-2 py-0.5 bg-blue-950 rounded border border-blue-800">SaaS Gov</span></h1>
+            <p class="text-[10px] text-slate-400">Polo Sul do Espírito Santo (ES)</p>
+          </div>
+        </div>
+
+        <!-- SELETOR DE CIDADES DO SUL DO ES COM SETA -->
+        <div class="flex items-center gap-2 bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700 px-3 py-1.5 rounded-xl transition shadow-inner">
+          <img id="header-brasao-img" src="https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=50" alt="Brasão" class="w-6 h-6 rounded-full object-cover border border-slate-500 shadow-sm">
+          <div class="flex flex-col">
+            <span class="text-[9px] text-blue-300 font-bold uppercase tracking-wider flex items-center gap-1">
+              <span>📍 Sul do ES</span>
+            </span>
+            <select id="select-cidade-topo" onchange="aoTrocarCidade(this.value)" class="select-seta bg-transparent text-xs font-black text-white outline-none cursor-pointer">
+              <!-- Preenchido via Javascript com todas as 27 cidades do Sul do ES -->
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ações do Cidadão -->
+      <div class="flex flex-wrap items-center gap-2">
+        <button onclick="abrirModalConsultaPublica()" class="bg-indigo-900/60 hover:bg-indigo-800 text-indigo-200 border border-indigo-700/50 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+          <span>🔍</span> <span>Consultar Protocolo</span>
+        </button>
+        
+        <!-- Botão Perfil do Cidadão -->
+        <div class="border-l border-slate-700 pl-2 ml-1">
+          <button onclick="abrirModalAuthCidadao()" id="btn-auth-user" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm">
+            <span>👤</span> <span id="lbl-auth-user">Meu Perfil / Identificação</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== CONTEÚDO PRINCIPAL ==================== -->
+  <main class="max-w-7xl mx-auto p-4 md:p-6">
+
+    <!-- ==================== VISÃO 1: APP DO CIDADÃO ==================== -->
+    <section id="visao-cidadao" class="max-w-md mx-auto bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border-8 border-slate-900 transition-all">
+      
+      <!-- Cabeçalho do App com Brasão Oficial da Cidade -->
+      <div class="bg-gradient-to-br from-blue-700 via-blue-800 to-indigo-950 text-white p-5 relative">
+        <div class="flex justify-between items-start gap-2">
+          <div class="flex items-center gap-3">
+            <img id="app-brasao-img" src="" alt="Brasão" class="w-12 h-12 rounded-2xl object-cover bg-white/20 p-1 border border-white/30 shadow-md">
+            <div>
+              <p class="text-[10px] font-bold uppercase tracking-wider text-blue-200">SUL DO ESPÍRITO SANTO</p>
+              <h2 class="text-base font-extrabold leading-tight" id="app-prefeitura-nome">Prefeitura Municipal</h2>
+            </div>
+          </div>
+          <span class="text-[10px] bg-emerald-500/30 text-emerald-200 border border-emerald-400/40 px-2.5 py-0.5 rounded-full font-bold">
+            ● Online
+          </span>
+        </div>
+
+        <!-- SELETOR DE CIDADE COM SETA DENTRO DO APP DO CIDADÃO -->
+        <div class="mt-3.5 bg-white/10 p-2.5 rounded-2xl border border-white/20 backdrop-blur-sm">
+          <label class="block text-[10px] font-bold text-blue-200 mb-1">Selecione seu Município (Clique na seta):</label>
+          <div class="relative">
+            <select id="select-cidade-app" onchange="aoTrocarCidade(this.value)" class="select-seta w-full bg-blue-900/90 text-white text-xs font-bold rounded-xl px-3 py-2 border border-blue-400 outline-none cursor-pointer shadow-sm">
+              <!-- Opções de todas as cidades do Sul do ES com seta -->
+            </select>
+          </div>
+        </div>
+
+        <div class="mt-2.5 bg-black/20 p-2.5 rounded-xl border border-white/10 flex justify-between items-center text-xs">
+          <div>
+            <p class="text-white font-medium">👋 <span id="app-saudacao-cidadao">Olá, Munícipe!</span></p>
+            <p class="text-[10px] text-blue-200" id="app-cidade-cidadao">Acesse os serviços municipais abaixo.</p>
+          </div>
+          <button onclick="abrirModalAuthCidadao()" class="text-[11px] bg-white text-blue-900 font-bold px-2.5 py-1 rounded-lg shadow-sm hover:bg-blue-50 transition">
+            Identificar-se
+          </button>
+        </div>
+      </div>
+
+      <!-- Abas: Catálogo de Serviços vs Meus Protocolos -->
+      <div class="flex border-b bg-slate-50 text-center">
+        <button onclick="mudarAbaApp('servicos')" id="aba-servicos" class="flex-1 py-3 text-xs font-bold text-blue-700 border-b-2 border-blue-700 transition">Catálogo de Serviços (<span id="lbl-aba-catalogo-num">18</span>)</button>
+        <button onclick="mudarAbaApp('protocolos')" id="aba-protocolos" class="flex-1 py-3 text-xs font-medium text-slate-500 hover:text-slate-800 transition">Meus Protocolos (<span id="cont-pedidos-cid">0</span>)</button>
+      </div>
+
+      <!-- Aba 1: Catálogo de Serviços com Filtro por Categoria -->
+      <div id="conteudo-servicos" class="p-4 space-y-3.5">
+        
+        <!-- Filtros por Categoria de Serviços Essenciais -->
+        <div class="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none text-[11px] font-bold">
+          <button onclick="filtrarCategoriaServicos('TODOS')" id="btn-filtro-cat-todos" class="filtro-cat-btn px-3 py-1.5 rounded-xl bg-blue-600 text-white whitespace-nowrap shadow-sm" data-cat="TODOS">Todos (18)</button>
+          <button onclick="filtrarCategoriaServicos('SAUDE')" class="filtro-cat-btn px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap" data-cat="SAUDE">🏥 Saúde</button>
+          <button onclick="filtrarCategoriaServicos('CIDADANIA')" class="filtro-cat-btn px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap" data-cat="CIDADANIA">📝 Documentos</button>
+          <button onclick="filtrarCategoriaServicos('ZELADORIA')" class="filtro-cat-btn px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap" data-cat="ZELADORIA">🧹 Zeladoria / Obras</button>
+          <button onclick="filtrarCategoriaServicos('EDUCACAO')" class="filtro-cat-btn px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap" data-cat="EDUCACAO">🏫 Educação</button>
+          <button onclick="filtrarCategoriaServicos('SOCIAL')" class="filtro-cat-btn px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap" data-cat="SOCIAL">🏠 Social</button>
+        </div>
+
+        <!-- Grid de Cards dos Serviços (IMEDIATAMENTE VISÍVEIS) -->
+        <div id="lista-servicos-app" class="grid grid-cols-2 gap-2.5 mb-2"></div>
+
+        <!-- FORMULÁRIO COMPLETO DE AGENDAMENTO E SOLICITAÇÃO -->
+        <form id="form-solicitacao" class="hidden bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3 shadow-inner" onsubmit="enviarSolicitacao(event)">
+          <div class="flex justify-between items-center border-b pb-2">
+            <div>
+              <span class="text-[10px] font-bold uppercase text-blue-600 tracking-wider">Abertura de Solicitação</span>
+              <h3 id="titulo-form-servico" class="font-black text-blue-950 text-sm">Nome do Serviço</h3>
+              <p class="text-[10px]" id="prazo-form-servico"></p>
+            </div>
+            <button type="button" onclick="fecharFormulario()" class="text-xs text-rose-500 hover:text-rose-700 font-bold px-2 py-0.5 rounded">Fechar ✕</button>
+          </div>
+
+          <input type="hidden" id="servico-id-selecionado">
+
+          <!-- Banner Informativo Dinâmico (Muda se for Agendamento Direto em até 72h) -->
+          <div id="banner-tipo-servico" class="p-3 rounded-xl border text-xs"></div>
+
+          <!-- Dados do Cidadão -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Seu Nome Completo *</label>
+            <input type="text" id="cid-nome" required placeholder="Ex: Maria da Silva" class="w-full p-2.5 text-xs border border-slate-300 rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">CPF *</label>
+              <input type="text" id="cid-cpf" required placeholder="000.000.000-00" maxlength="14" oninput="aplicarMascaraCPF(this)" class="w-full p-2.5 text-xs border border-slate-300 rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-emerald-800 mb-1">WhatsApp com DDD *</label>
+              <input type="text" id="cid-tel" required placeholder="(28) 99999-0000" maxlength="15" oninput="aplicarMascaraTelefone(this)" class="w-full p-2.5 text-xs border border-emerald-300 rounded-xl bg-emerald-50 outline-none focus:ring-2 focus:ring-emerald-500">
+            </div>
+          </div>
+
+          <!-- Bloco de Agendamento em Posto / UBS (Saúde e Atendimento Presencial) -->
+          <div id="bloco-agenda" class="hidden space-y-2 bg-blue-50 p-3 rounded-xl border border-blue-200">
+            <p class="text-xs font-bold text-blue-900">Preencha sua preferência para atendimento:</p>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[11px] font-bold text-blue-900 mb-1">Unidade / Posto *</label>
+                <select id="cid-ubs" class="w-full p-2 text-xs border border-blue-300 rounded-lg bg-white outline-none">
+                  <option value="UBS Central">UBS Central</option>
+                  <option value="UBS Bairro Novo">UBS Bairro Novo</option>
+                  <option value="UBS Zona Rural">UBS Zona Rural</option>
+                  <option value="Agência / Sede Municipal">Agência / Sede Municipal</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-blue-900 mb-1">Turno de Preferência *</label>
+                <select id="cid-turno" class="w-full p-2 text-xs border border-blue-300 rounded-lg bg-white outline-none">
+                  <option value="MANHA">Manhã (08h às 12h)</option>
+                  <option value="TARDE">Tarde (13h às 17h)</option>
+                  <option value="INTEGRAL">Qualquer Horário</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- BLOCO DE ENDEREÇO COM RECONHECIMENTO AUTOMÁTICO NO MAPA (RUA + NÚMERO) -->
+          <div id="bloco-endereco" class="hidden space-y-3 bg-amber-50/80 p-3.5 rounded-2xl border border-amber-200">
+            <div class="flex justify-between items-center">
+              <div>
+                <h4 class="text-xs font-extrabold text-amber-950 flex items-center gap-1.5">
+                  <span>📍</span> <span>Endereço da Ocorrência (Reconhecido no Mapa)</span>
+                </h4>
+                <p class="text-[10px] text-amber-800">Ao digitar a rua e o número, o mapa localiza e posiciona o pino automaticamente.</p>
+              </div>
+              <button type="button" onclick="obterLocalizacaoAtual()" class="text-[10px] bg-amber-200 hover:bg-amber-300 text-amber-900 font-bold px-2.5 py-1.5 rounded-xl transition shadow-sm flex items-center gap-1">
+                <span>📍</span> <span>Usar Meu GPS</span>
+              </button>
+            </div>
+            
+            <div class="grid grid-cols-3 gap-2">
+              <div class="col-span-2 relative">
+                <label class="block text-[11px] font-bold text-amber-900 mb-1">Nome da Rua / Avenida *</label>
+                <input type="text" id="cid-rua" oninput="agendarBuscaAutomaticaNoMapa()" onblur="buscarEnderecoNoMapa()" placeholder="Ex: Rua 25 de Março" autocomplete="off" class="w-full p-2 text-xs border border-amber-300 rounded-xl bg-white outline-none focus:ring-2 focus:ring-amber-500">
+                <div id="sugestoes-endereco" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-amber-300 rounded-xl shadow-xl max-h-48 overflow-y-auto z-50 divide-y divide-slate-100 text-xs"></div>
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-amber-900 mb-1">Número / Km *</label>
+                <input type="text" id="cid-numero" oninput="agendarBuscaAutomaticaNoMapa()" onblur="buscarEnderecoNoMapa()" placeholder="Ex: 150 ou S/N" class="w-full p-2 text-xs border border-amber-300 rounded-xl bg-white outline-none focus:ring-2 focus:ring-amber-500">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[11px] font-bold text-amber-900 mb-1">Bairro / Localidade *</label>
+                <input type="text" id="cid-bairro" oninput="agendarBuscaAutomaticaNoMapa()" onblur="buscarEnderecoNoMapa()" placeholder="Ex: Centro, Aeroporto, etc." class="w-full p-2 text-xs border border-amber-300 rounded-xl bg-white outline-none focus:ring-2 focus:ring-amber-500">
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-amber-900 mb-1">Ponto de Referência</label>
+                <input type="text" id="cid-referencia" placeholder="Ex: Próximo à praça / poste nº 12" class="w-full p-2 text-xs border border-amber-300 rounded-xl bg-white outline-none">
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <button type="button" onclick="buscarEnderecoNoMapa()" class="text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded-xl transition shadow-sm flex items-center gap-1">
+                <span>🔍</span> <span>Localizar no Mapa</span>
+              </button>
+              <div id="status-busca-mapa" class="text-[11px] font-bold text-emerald-800 hidden">✓ Ponto identificado no mapa!</div>
+            </div>
+            
+            <!-- Container do Mapa Leaflet -->
+            <div class="relative space-y-1">
+              <div id="mapa-zeladoria"></div>
+              <p class="text-[10px] text-amber-900 bg-amber-100/70 p-2 rounded-xl">💡 <strong>Ajuste Fino:</strong> Você também pode tocar no mapa ou arrastar o pino vermelho para marcar o ponto exato da casa ou poste.</p>
+            </div>
+          </div>
+
+          <!-- Container de Perguntas Extras Específicas do Serviço -->
+          <div id="container-campos-extras" class="space-y-2"></div>
+
+          <!-- Detalhes do Pedido -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Descrição / Detalhes da Solicitação *</label>
+            <textarea id="cid-desc" required rows="2" placeholder="Explique com detalhes o que você precisa..." class="w-full p-2.5 text-xs border border-slate-300 rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          </div>
+
+          <button type="submit" id="btn-submit-solicitacao" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-xs shadow-md transition transform active:scale-95">
+            Registrar Solicitação
+          </button>
+        </form>
+      </div>
+
+      <!-- Aba 2: Meus Protocolos -->
+      <div id="conteudo-protocolos" class="hidden p-4 space-y-3.5">
+        <div class="bg-slate-50 p-3 rounded-2xl border space-y-2">
+          <label class="block text-xs font-bold text-slate-700">Consulte seus protocolos pelo CPF:</label>
+          <div class="flex gap-2">
+            <input type="text" id="filtro-cpf-cidadao" placeholder="000.000.000-00" maxlength="14" oninput="aplicarMascaraCPF(this)" class="flex-1 p-2 text-xs border rounded-xl bg-white outline-none">
+            <button onclick="filtrarPedidosPorCpf()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm">Buscar</button>
+          </div>
+        </div>
+        <div id="lista-protocolos-cidadao" class="space-y-3">
+          <p class="text-center text-xs text-slate-400 py-6">Digite seu CPF acima para carregar seus protocolos.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==================== MODAL: COMPROVANTE DE PROTOCOLO OFICIAL ==================== -->
+  <div id="modal-comprovante-protocolo" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl text-center">
+      <div id="modal-comp-icone-topo" class="w-14 h-14 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-2xl mx-auto shadow-inner">
+        ✓
+      </div>
+      
+      <div>
+        <span id="modal-comp-badge-status" class="text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full">STATUS</span>
+        <h3 class="text-2xl font-black text-slate-900 mt-2" id="modal-comp-protocolo">#2026-0000</h3>
+        <p class="text-[11px] font-mono text-blue-600 mt-0.5">Código Seguro: <span id="modal-comp-codigo-publico">-</span></p>
+        <p class="text-xs text-slate-500 mt-1" id="modal-comp-data">Data de abertura: Hoje</p>
+      </div>
+
+      <div class="bg-slate-50 p-4 rounded-2xl border text-left text-xs space-y-2">
+        <p><strong>Cidadão:</strong> <span id="modal-comp-cidadao">Nome</span></p>
+        <p><strong>CPF:</strong> <span id="modal-comp-cpf">000.000.000-00</span></p>
+        <p><strong>Serviço:</strong> <span id="modal-comp-servico">Serviço</span></p>
+        <p><strong>Setor Responsável:</strong> <span id="modal-comp-setor" class="font-bold text-indigo-900">Secretaria Municipal</span></p>
+        <p><strong>Endereço / Local:</strong> <span id="modal-comp-endereco-completo">Endereço</span></p>
+        <div id="modal-comp-mapa-box" class="hidden p-2 rounded-xl bg-blue-50 border border-blue-200">
+          <a id="modal-comp-mapa-link" href="#" target="_blank" class="text-blue-700 font-bold flex items-center gap-1 hover:underline">
+            <span>🗺️</span> <span>Ver Localização Enviada no Google Maps ↗</span>
+          </a>
+        </div>
+        <div id="modal-comp-aviso-box" class="p-2.5 rounded-xl border text-xs font-medium"></div>
+      </div>
+
+      <div class="flex gap-2 pt-2">
+        <button onclick="fecharComprovanteProtocolo()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs transition">
+          Ver Meus Protocolos
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ==================== MODAL: CONSULTA PÚBLICA SEGURA DE PROTOCOLO ==================== -->
+  <div id="modal-consulta-publica" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex justify-between items-center border-b pb-3">
+        <div>
+          <h3 class="font-black text-base text-slate-900">Consulta Rápida de Protocolo</h3>
+          <p class="text-xs text-slate-500">Acompanhe seu agendamento informando seu protocolo e CPF.</p>
+        </div>
+        <button onclick="fecharModalConsultaPublica()" class="text-slate-400 hover:text-slate-600 font-bold">✕</button>
+      </div>
+
+      <form onsubmit="executarConsultaPublica(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Número do Protocolo ou Código Seguro *</label>
+          <input type="text" id="cons-protocolo" required placeholder="Ex: 2001 ou código público" class="w-full p-2.5 text-xs border rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-500 uppercase">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Últimos 4 Dígitos do seu CPF *</label>
+          <input type="text" id="cons-cpf-final" required placeholder="Ex: 1234" maxlength="4" class="w-full p-2.5 text-xs border rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <button type="submit" id="btn-cons-submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs shadow transition">
+          Consultar Andamento
+        </button>
+      </form>
+
+      <!-- Resultado da Consulta -->
+      <div id="resultado-consulta-publica" class="hidden bg-slate-50 p-4 rounded-2xl border space-y-2.5 text-xs"></div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: IDENTIFICAÇÃO DO CIDADÃO ==================== -->
+  <div id="modal-auth-cidadao" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center border-b pb-3">
+        <div>
+          <h3 class="font-black text-base text-slate-900" id="titulo-modal-auth">Perfil do Cidadão</h3>
+          <p class="text-xs text-slate-500" id="subtitulo-modal-auth">Seus dados ficam gravados para facilitar seus próximos pedidos.</p>
+        </div>
+        <button type="button" onclick="fecharModalAuthCidadao()" class="text-slate-400 hover:text-slate-600 font-bold">✕</button>
+      </div>
+
+      <form onsubmit="salvarIdentificacaoExpressa(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Nome Completo *</label>
+          <input type="text" id="auth-cid-nome" required placeholder="Ex: Maria da Silva" class="w-full p-2.5 text-xs border rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">CPF *</label>
+            <input type="text" id="auth-cid-cpf" required placeholder="000.000.000-00" maxlength="14" oninput="aplicarMascaraCPF(this)" class="w-full p-2.5 text-xs border rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">WhatsApp com DDD *</label>
+            <input type="text" id="auth-cid-tel" required placeholder="(28) 99999-0000" maxlength="15" oninput="aplicarMascaraTelefone(this)" class="w-full p-2.5 text-xs border rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Cidade onde você mora (Sul do ES) *</label>
+          <select id="auth-cid-cidade" class="select-seta-dark w-full p-2.5 text-xs border rounded-xl bg-white outline-none cursor-pointer"></select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">E-mail (Opcional)</label>
+          <input type="email" id="auth-cid-email" placeholder="seuemail@exemplo.com" class="w-full p-2.5 text-xs border rounded-xl bg-white outline-none">
+        </div>
+
+        <!-- Termo de Consentimento LGPD -->
+        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+          <label class="flex items-start gap-2 text-[11px] text-slate-600 cursor-pointer">
+            <input type="checkbox" id="auth-cid-lgpd" required checked class="mt-0.5 rounded text-blue-600">
+            <span>Concordo com os Termos de Uso e Política de Privacidade para tramitação e avisos via WhatsApp dos meus protocolos municipais (LGPD).</span>
+          </label>
+        </div>
+
+        <div class="pt-2">
+          <button type="submit" id="btn-auth-submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs shadow transition">
+            Salvar Meus Dados e Conectar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ==================== LÓGICA JAVASCRIPT ==================== -->
+  <script>
+    const SUPABASE_URL = 'https://mnhtavsafskhiodywfat.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1uaHRhdnNhZnNraGlvZHl3ZmF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEwMDQxNDEsImV4cCI6MjEwNjU4MDE0MX0.PFmD7YjlIJyhcqXhMTt4qYngV0d8pwZrgdfJMgZUCq8';
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const supabaseClient = sb;
+
+    // 1. DATASET OFICIAL: TODAS AS 27 CIDADES DO SUL DO ESPÍRITO SANTO
+    const CIDADES_SUL_ES = [
+      { id: 'e0011111-0001-0001-0001-000000000001', nome: 'Prefeitura Municipal de Cachoeiro de Itapemirim', cidade: 'Cachoeiro de Itapemirim', uf: 'ES', lat: -20.8489, lng: -41.1128, brasao_url: 'https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=120' },
+      { id: 'e0011111-0001-0001-0001-000000000002', nome: 'Prefeitura Municipal de Itapemirim', cidade: 'Itapemirim', uf: 'ES', lat: -21.0111, lng: -40.8339, brasao_url: 'https://images.unsplash.com/photo-1577495508048-b635879837f1?w=120' },
+      { id: 'e0011111-0001-0001-0001-000000000003', nome: 'Prefeitura Municipal de Marataízes', cidade: 'Marataízes', uf: 'ES', lat: -21.0433, lng: -40.8244, brasao_url: 'https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=120' },
+      { id: 'e0011111-0001-0001-0001-000000000004', nome: 'Prefeitura Municipal de Anchieta', cidade: 'Anchieta', uf: 'ES', lat: -20.8058, lng: -40.6453, brasao_url: 'https://images.unsplash.com/photo-1577495508048-b635879837f1?w=120' },
+      { id: 'e0011111-0001-0001-0001-000000000005', nome: 'Prefeitura Municipal de Piúma', cidade: 'Piúma', uf: 'ES', lat: -20.8336, lng: -40.7297, brasao_url: 'https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=120' },
+      { id: 'e0011111-0001-0001-0001-000000000006', nome: 'Prefeitura Municipal de Iconha', cidade: 'Iconha', uf: 'ES', lat: -20.7931, lng: -40.8108, brasao_url: 'https://images.unsplash.com/photo-1577495508048-b635879837f1?w=120' },
+      { id: 'e0011111-0001-0001-0001-000000000007', nome: 'Prefeitura Municipal de Rio Novo do Sul', cidade: 'Rio Novo do Sul', uf: 'ES', lat: -20.8625, lng: -40.9358, brasao_url: 'https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=120' },
+      { id: 'e0011111-0001-0001-0001-000000000008', nome: 'Prefeitura Municipal de Presidente Kennedy', cidade: 'Presidente Kennedy', uf: 'ES', lat: -21.0967, lng: -41.0478, brasao_url: 'https://images.unsplash.com/photo-1577495508048-b635879837f1?w=120' },
+      { id: 'e0011111-0001-0001-0001-000000000009', nome: 'Prefeitura Municipal de Castelo', cidade: 'Castelo', uf: 'ES', lat: -20.6036, lng: -41.2033, brasao_url: 'https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=120' },
+      { id: 'e0011111-0001-0001-0001-000000000010', nome: 'Prefeitura Municipal de Vargem Alta', cidade: 'Vargem Alta', uf: 'ES', lat: -20.6719, lng: -41.0078, brasao_url: 'https://images.unsplash.com/photo-1577495508048-b635879837f1?w=120' },
+      { id: 'e0011111-0001-0001-0001-000000000011', nome: 'Prefeitura Municipal de Muqui', cidade: 'Muqui', uf: 'ES', lat: -20.9525, lng: -41.3458, brasao_url: 'https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=120' },
+      { id: 'e0011111-0001-0001-0001-000000000012', nome: 'Prefeitura Municipal de Mimoso do Sul', cidade: 'Mimoso do Sul', uf: 'ES', lat: -21.0642, lng: -41.3653, brasao_url: 'https://images.unsplash.com/photo-1577495508048-b635879837f1?w=120' },
+      { id: 'e0011111-0001-0001-0001-000000000013', nome: 'Prefeitura Municipal de Atílio Vivácqua', cidade: 'Atílio Vivácqua', uf: 'ES', lat: -20.9142, lng: -41.1983, brasao_url: 'https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=120' },
+      { id: 'e0011111-0001-0001-0001-000000000014', nome: 'Prefeitura Municipal de Alegre', cidade: 'Alegre', uf: 'ES', lat: -20.7631, lng: -41.5331, brasao_url: 'https://images.unsplash.com/photo-1577495508048-b635879837f1?w=120' },
+      { id: 'e0011111-0001-0001-0001-000000000015', nome: 'Prefeitura Municipal de Guaçuí', cidade: 'Guaçuí', uf: 'ES', lat: -20.7761, lng: -41.6792, brasao_url: 'https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=120' },
+      { id: 'e0011111-0001-0001-0001-000000000016', nome: 'Prefeitura Municipal de São José do Calçado', cidade: 'São José do Calçado', uf: 'ES', lat: -20.9822, lng: -41.6547, brasao_url: 'https://images.unsplash.com/photo-1577495508048-b635879837f1?w=120' },
+      { id: 'e0011111-0001-0001-0001-000000000017', nome: 'Prefeitura Municipal de Bom Jesus do Norte', cidade: 'Bom Jesus do Norte', uf: 'ES', lat: -21.1897, lng: -41.6703, brasao_url: 'https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=120' },
+      { id: 'e0011111-0001-0001-0001-000000000018', nome: 'Prefeitura Municipal de Apiacá', cidade: 'Apiacá', uf: 'ES', lat: -21.1542, lng: -41.5678, brasao_url: 'https://images.unsplash.com/photo-1577495508048-b635879837f1?w=120' },
+      { id: 'e0011111-0001-0001-0001-000000000019', nome: 'Prefeitura Municipal de Jerônimo Monteiro', cidade: 'Jerônimo Monteiro', uf: 'ES', lat: -20.7903, lng: -41.3967, brasao_url: 'https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=120' },
+      { id: 'e0011111-0001-0001-0001-000000000020', nome: 'Prefeitura Municipal de Ibitirama', cidade: 'Ibitirama', uf: 'ES', lat: -20.5417, lng: -41.6708, brasao_url: 'https://images.unsplash.com/photo-1577495508048-b635879837f1?w=120' },
+      { id: 'e0011111-0001-0001-0001-000000000021', nome: 'Prefeitura Municipal de Divino de São Lourenço', cidade: 'Divino de São Lourenço', uf: 'ES', lat: -20.6206, lng: -41.6853, brasao_url: 'https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=120' },
+      { id: 'e0011111-0001-0001-0001-000000000022', nome: 'Prefeitura Municipal de Dores do Rio Preto', cidade: 'Dores do Rio Preto', uf: 'ES', lat: -20.6894, lng: -41.8456, brasao_url: 'https://images.unsplash.com/photo-1577495508048-b635879837f1?w=120' },
+      { id: 'e0011111-0001-0001-0001-000000000023', nome: 'Prefeitura Municipal de Iúna', cidade: 'Iúna', uf: 'ES', lat: -20.3458, lng: -41.5358, brasao_url: 'https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=120' },
+      { id: 'e0011111-0001-0001-0001-000000000024', nome: 'Prefeitura Municipal de Irupi', cidade: 'Irupi', uf: 'ES', lat: -20.3456, lng: -41.6425, brasao_url: 'https://images.unsplash.com/photo-1577495508048-b635879837f1?w=120' },
+      { id: 'e0011111-0001-0001-0001-000000000025', nome: 'Prefeitura Municipal de Ibatiba', cidade: 'Ibatiba', uf: 'ES', lat: -20.2339, lng: -41.5111, brasao_url: 'https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=120' },
+      { id: 'e0011111-0001-0001-0001-000000000026', nome: 'Prefeitura Municipal de Muniz Freire', cidade: 'Muniz Freire', uf: 'ES', lat: -20.4642, lng: -41.4131, brasao_url: 'https://images.unsplash.com/photo-1577495508048-b635879837f1?w=120' },
+      { id: 'e0011111-0001-0001-0001-000000000027', nome: 'Prefeitura Municipal de Alfredo Chaves', cidade: 'Alfredo Chaves', uf: 'ES', lat: -20.6358, lng: -40.7511, brasao_url: 'https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=120' }
+    ];
+
+    // 2. CATÁLOGO BASE DOS 16 SERVIÇOS ESSENCIAIS VINCULADOS AOS SETORES MUNICIPAIS
+    const SETORES_MUNICIPAIS = {
+      'SAUDE': { sigla: 'SEMUS', nome: 'Secretaria Municipal de Saúde', icone: '🏥' },
+      'CIDADANIA': { sigla: 'SEMCT', nome: 'Secretaria de Cidadania, Trabalho e Direitos Humanos', icone: '📝' },
+      'ZELADORIA': { sigla: 'SEMOB', nome: 'Secretaria de Manutenção, Serviços e Obras (SEMOB / Zeladoria)', icone: '🧹' },
+      'EDUCACAO': { sigla: 'SEME', nome: 'Secretaria Municipal de Educação (SEME)', icone: '🏫' },
+      'SOCIAL': { sigla: 'SEMDS', nome: 'Secretaria de Desenvolvimento Social e Habitação', icone: '🏠' }
+    };
+
+    const SERVICOS_BASE = [
+      // 1. SAÚDE PÚBLICA (SEMUS)
+      { id: 'srv-01', categoria: 'SAUDE', secretaria_sigla: 'SEMUS', secretaria_nome: 'Secretaria Municipal de Saúde', nome: 'Consultas Médicas (UBS) - Clínico Geral e Pediatria', icone: '🩺', tipo_fluxo: 'AGENDAMENTO', exige_unidade_saude: true, exige_endereco: false, exige_cartao_sus: false, prazo_estimado_dias: 3 },
+      { id: 'srv-01b', categoria: 'SAUDE', secretaria_sigla: 'SEMUS', secretaria_nome: 'Secretaria Municipal de Saúde', nome: 'Atendimento Odontológico / Dentista (UBS e CEO)', icone: '🦷', tipo_fluxo: 'AGENDAMENTO', exige_unidade_saude: true, exige_endereco: false, exige_cartao_sus: false, prazo_estimado_dias: 3 },
+      { id: 'srv-02', categoria: 'SAUDE', secretaria_sigla: 'SEMUS', secretaria_nome: 'Secretaria Municipal de Saúde', nome: 'Vacinação - Calendário Nacional e Campanhas', icone: '💉', tipo_fluxo: 'AGENDAMENTO', exige_unidade_saude: true, exige_endereco: false, exige_cartao_sus: false, prazo_estimado_dias: 2 },
+      { id: 'srv-03', categoria: 'SAUDE', secretaria_sigla: 'SEMUS', secretaria_nome: 'Secretaria Municipal de Saúde', nome: 'Distribuição de Medicamentos (Farmácia Básica)', icone: '💊', tipo_fluxo: 'AGENDAMENTO', exige_unidade_saude: false, exige_endereco: false, exige_cartao_sus: false, prazo_estimado_dias: 1 },
+      { id: 'srv-04', categoria: 'SAUDE', secretaria_sigla: 'SEMUS', secretaria_nome: 'Secretaria Municipal de Saúde', nome: 'Pronto-Atendimento / UPA 24h (Orientações)', icone: '🚑', tipo_fluxo: 'DOCUMENTACAO', exige_unidade_saude: false, exige_endereco: false, exige_cartao_sus: false, prazo_estimado_dias: 1 },
+
+      // 2. DOCUMENTAÇÃO E CIDADANIA (SEMCT)
+      { id: 'srv-05', categoria: 'CIDADANIA', secretaria_sigla: 'SEMCT', secretaria_nome: 'Secretaria de Cidadania, Trabalho e Direitos Humanos', nome: 'Emissão de 2ª Via de Certidões', icone: '📜', tipo_fluxo: 'DOCUMENTACAO', exige_unidade_saude: false, exige_endereco: false, exige_cartao_sus: false, prazo_estimado_dias: 5 },
+      { id: 'srv-06', categoria: 'CIDADANIA', secretaria_sigla: 'SEMCT', secretaria_nome: 'Secretaria de Cidadania, Trabalho e Direitos Humanos', nome: 'Junta Militar - Alistamento e Certificados', icone: '🎖️', tipo_fluxo: 'DOCUMENTACAO', exige_unidade_saude: false, exige_endereco: false, exige_cartao_sus: false, prazo_estimado_dias: 3 },
+      { id: 'srv-07', categoria: 'CIDADANIA', secretaria_sigla: 'SEMCT', secretaria_nome: 'Secretaria de Cidadania, Trabalho e Direitos Humanos', nome: 'PAT / Agência do Trabalhador e Empregos', icone: '💼', tipo_fluxo: 'AGENDAMENTO', exige_unidade_saude: false, exige_endereco: false, exige_cartao_sus: false, prazo_estimado_dias: 2 },
+
+      // 3. INFRAESTRUTURA E ZELADORIA URBANA (SEMOB / AGENDAMENTO DIRETO EM CAMPO - ATÉ 72H)
+      { id: 'srv-08', categoria: 'ZELADORIA', secretaria_sigla: 'SEMOB', secretaria_nome: 'Secretaria de Manutenção, Serviços e Obras (SEMOB / Zeladoria)', nome: 'Coleta de Lixo Especial e Cata-Treco', icone: '🚛', tipo_fluxo: 'ZELADORIA', exige_unidade_saude: false, exige_endereco: true, exige_cartao_sus: false, prazo_estimado_dias: 3, agendamento_direto_72h: true },
+      { id: 'srv-09', categoria: 'ZELADORIA', secretaria_sigla: 'SEMOB', secretaria_nome: 'Secretaria de Manutenção, Serviços e Obras (SEMOB / Zeladoria)', nome: 'Iluminação Pública - Troca de Lâmpadas', icone: '💡', tipo_fluxo: 'ZELADORIA', exige_unidade_saude: false, exige_endereco: true, exige_cartao_sus: false, prazo_estimado_dias: 3, agendamento_direto_72h: true },
+      { id: 'srv-10', categoria: 'ZELADORIA', secretaria_sigla: 'SEMOB', secretaria_nome: 'Secretaria de Manutenção, Serviços e Obras (SEMOB / Zeladoria)', nome: 'Manutenção de Vias - Operação Tapa-Buraco', icone: '🚧', tipo_fluxo: 'ZELADORIA', exige_unidade_saude: false, exige_endereco: true, exige_cartao_sus: false, prazo_estimado_dias: 3, agendamento_direto_72h: true },
+      { id: 'srv-11', categoria: 'ZELADORIA', secretaria_sigla: 'SEMOB', secretaria_nome: 'Secretaria de Manutenção, Serviços e Obras (SEMOB / Zeladoria)', nome: 'Limpeza e Paisagismo - Corte de Mato e Praças', icone: '🌳', tipo_fluxo: 'ZELADORIA', exige_unidade_saude: false, exige_endereco: true, exige_cartao_sus: false, prazo_estimado_dias: 3, agendamento_direto_72h: true },
+
+      // 4. EDUCAÇÃO INFANTIL E FUNDAMENTAL (SEME)
+      { id: 'srv-12', categoria: 'EDUCACAO', secretaria_sigla: 'SEME', secretaria_nome: 'Secretaria Municipal de Educação', nome: 'Creches e Pré-Escolas - Inscrição e Vagas', icone: '👶', tipo_fluxo: 'DOCUMENTACAO', exige_unidade_saude: false, exige_endereco: true, exige_cartao_sus: false, prazo_estimado_dias: 7 },
+      { id: 'srv-13', categoria: 'EDUCACAO', secretaria_sigla: 'SEME', secretaria_nome: 'Secretaria Municipal de Educação', nome: 'Ensino Fundamental I e II - Matrículas', icone: '🎒', tipo_fluxo: 'DOCUMENTACAO', exige_unidade_saude: false, exige_endereco: false, exige_cartao_sus: false, prazo_estimado_dias: 5 },
+      { id: 'srv-14', categoria: 'EDUCACAO', secretaria_sigla: 'SEME', secretaria_nome: 'Secretaria Municipal de Educação (Transporte Escolar)', nome: 'Transporte Escolar (Rotas, Pontos e Carteirinha)', icone: '🚌', tipo_fluxo: 'ZELADORIA', exige_unidade_saude: false, exige_endereco: true, exige_cartao_sus: false, prazo_estimado_dias: 3, agendamento_direto_72h: true },
+      { id: 'srv-14b', categoria: 'EDUCACAO', secretaria_sigla: 'SEME', secretaria_nome: 'Secretaria Municipal de Educação (Nutrição e Merenda)', nome: 'Alimentação e Merenda Escolar (Cardápio e Dietas)', icone: '🍎', tipo_fluxo: 'DOCUMENTACAO', exige_unidade_saude: false, exige_endereco: false, exige_cartao_sus: false, prazo_estimado_dias: 3 },
+
+      // 5. HABITAÇÃO E ASSISTÊNCIA SOCIAL (SEMDS)
+      { id: 'srv-15', categoria: 'SOCIAL', secretaria_sigla: 'SEMDS', secretaria_nome: 'Secretaria de Desenvolvimento Social e Habitação', nome: 'CRAS e CREAS - CadÚnico e Bolsa Família', icone: '🤝', tipo_fluxo: 'AGENDAMENTO', exige_unidade_saude: false, exige_endereco: false, exige_cartao_sus: false, prazo_estimado_dias: 3 },
+      { id: 'srv-16', categoria: 'SOCIAL', secretaria_sigla: 'SEMDS', secretaria_nome: 'Secretaria de Desenvolvimento Social e Habitação', nome: 'Programas Habitacionais e Moradia Popular', icone: '🏡', tipo_fluxo: 'DOCUMENTACAO', exige_unidade_saude: false, exige_endereco: true, exige_cartao_sus: false, prazo_estimado_dias: 10 }
+    ];
+
+    let prefeituras = CIDADES_SUL_ES;
+    let prefeituraAtual = CIDADES_SUL_ES[0];
+    let servicos = SERVICOS_BASE;
+    let cidadaoLogado = null;
+    let categoriaAtiva = 'TODOS';
+    let debounceBuscaMapa = null;
+
+    // Mapa Leaflet
+    let mapaLeaflet = null;
+    let marcadorMapa = null;
+    let coordenadasSelecionadas = null;
+
+    window.onload = async () => {
+      carregarCidadaoSalvo();
+      const savedCidadeId = localStorage.getItem('conecta_cidade_id');
+      if (savedCidadeId) {
+        const achada = prefeituras.find(p => p.id === savedCidadeId);
+        if (achada) prefeituraAtual = achada;
+      }
+      preencherSelectsCidades();
+      await carregarCidadesDoBanco();
+      renderizarTudo();
+    };
+
+    // 3. SELETOR DE CIDADES DO SUL DO ES COM SETA
+    function preencherSelectsCidades() {
+      const optionsHtml = prefeituras.map(p => `
+        <option value="${p.id}" ${p.id === prefeituraAtual.id ? 'selected' : ''}>
+          ${p.cidade} - ${p.uf}
+        </option>
+      `).join('');
+
+      document.querySelectorAll('#select-cidade-topo, #select-cidade-app, #auth-cid-cidade')
+        .forEach(sel => { if (sel) sel.innerHTML = optionsHtml; });
+
+      atualizarInterfaceCidade();
+    }
+
+    async function carregarCidadesDoBanco() {
+      try {
+        const { data, error } = await supabaseClient.from('prefeituras').select('*').order('cidade');
+        if (!error && data && data.length > 0) {
+          prefeituras = data.map(dbP => {
+            const local = CIDADES_SUL_ES.find(c => c.cidade.toLowerCase() === dbP.cidade.toLowerCase());
+            return {
+              ...dbP,
+              lat: local?.lat || -20.8489,
+              lng: local?.lng || -41.1128,
+              brasao_url: dbP.brasao_url || local?.brasao_url
+            };
+          });
+          const savedCidadeId = localStorage.getItem('conecta_cidade_id');
+          if (savedCidadeId) {
+            const achada = prefeituras.find(p => p.id === savedCidadeId);
+            if (achada) prefeituraAtual = achada;
+          }
+          preencherSelectsCidades();
+        }
+      } catch (e) {
+        console.warn('Usando dataset do Sul do ES:', e);
+      }
+
+      await carregarDadosDaPrefeituraAtual();
+    }
+
+    function aoTrocarCidade(cidadeId) {
+      const encontrada = prefeituras.find(p => p.id === cidadeId);
+      if (encontrada) {
+        prefeituraAtual = encontrada;
+        localStorage.setItem('conecta_cidade_id', prefeituraAtual.id);
+
+        document.querySelectorAll('#select-cidade-topo, #select-cidade-app, #auth-cid-cidade')
+          .forEach(sel => { if (sel) sel.value = prefeituraAtual.id; });
+
+        atualizarInterfaceCidade();
+        carregarDadosDaPrefeituraAtual();
+      }
+    }
+
+    function atualizarInterfaceCidade() {
+      const brasao = prefeituraAtual.brasao_url || 'https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=100';
+
+      const headerBrasao = document.getElementById('header-brasao-img');
+      if (headerBrasao) headerBrasao.src = brasao;
+
+      const appBrasao = document.getElementById('app-brasao-img');
+      if (appBrasao) appBrasao.src = brasao;
+
+      const appNome = document.getElementById('app-prefeitura-nome');
+      if (appNome) appNome.innerText = prefeituraAtual.nome || `Prefeitura de ${prefeituraAtual.cidade}`;
+
+      if (mapaLeaflet && prefeituraAtual.lat && prefeituraAtual.lng) {
+        mapaLeaflet.setView([prefeituraAtual.lat, prefeituraAtual.lng], 14);
+        definirPontoNoMapa(prefeituraAtual.lat, prefeituraAtual.lng);
+      }
+    }
+
+    async function carregarDadosDaPrefeituraAtual() {
+      try {
+        const { data: servsDb, error: errServs } = await supabaseClient
+          .from('catalogo_servicos')
+          .select('*, secretarias(id, nome, sigla, icone)')
+          .eq('prefeitura_id', prefeituraAtual.id)
+          .eq('ativo', true)
+          .order('nome');
+
+        if (errServs) {
+          console.warn('Aviso ao carregar catalogo do Supabase:', errServs);
+        }
+
+        if (servsDb && servsDb.length > 0) {
+          servicos = servsDb.map(s => ({
+            ...s,
+            secretaria_sigla: s.secretarias?.sigla || s.secretaria_sigla,
+            secretaria_nome: s.secretarias?.nome || s.secretaria_nome
+          }));
+        } else {
+          servicos = SERVICOS_BASE;
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar serviços da prefeitura:', err);
+        servicos = SERVICOS_BASE;
+      }
+
+      atualizarContadoresServicos();
+      renderizarCatalogoApp();
+    }
+
+    function renderizarTudo() {
+      renderizarCatalogoApp();
+    }
+
+    // 4. RENDERIZAR OS 16 SERVIÇOS NO APP DO CIDADÃO
+    function filtrarCategoriaServicos(cat) {
+      categoriaAtiva = cat;
+      document.querySelectorAll('.filtro-cat-btn').forEach(b => {
+        if (b.getAttribute('data-cat') === cat) {
+          b.className = 'filtro-cat-btn px-3 py-1.5 rounded-xl bg-blue-600 text-white whitespace-nowrap shadow-sm font-bold text-[11px]';
+        } else {
+          b.className = 'filtro-cat-btn px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap font-bold text-[11px]';
+        }
+      });
+      renderizarCatalogoApp();
+    }
+
+    function renderizarCatalogoApp() {
+      const lista = document.getElementById('lista-servicos-app');
+      let filtrados = servicos;
+      if (categoriaAtiva !== 'TODOS') {
+        filtrados = servicos.filter(s => s.categoria === categoriaAtiva);
+      }
+
+      lista.innerHTML = filtrados.map(s => {
+        const is72h = s.agendamento_direto_72h || s.categoria === 'ZELADORIA';
+        return `
+          <button onclick="abrirFormularioServico('${s.id}')" class="p-3 bg-slate-50 hover:bg-blue-50 border hover:border-blue-400 rounded-2xl text-left transition flex flex-col justify-between shadow-sm active:scale-95 group">
+            <div class="flex justify-between items-start w-full mb-1.5">
+              <span class="text-2xl group-hover:scale-110 transition">${s.icone || '📌'}</span>
+              <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${is72h ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-blue-100 text-blue-700'}">
+                ${is72h ? '⚡ Direto em 72h' : s.tipo_fluxo}
+              </span>
+            </div>
+            <div>
+              <p class="font-bold text-xs text-slate-800 leading-tight line-clamp-2">${s.nome}</p>
+              <p class="text-[10px] text-slate-500 mt-1">${is72h ? '🚚 Atendimento no local' : '📅 Agendamento oficial'}</p>
+            </div>
+          </button>
+        `;
+      }).join('');
+    }
+
+    // 5. ABRIR FORMULÁRIO (COM AGENDAMENTO DIRETO OU PENDENTE)
+    function verificarSeEhServicoCampo(s) {
+      if (!s) return false;
+      return Boolean(s.agendamento_direto_72h || s.categoria === 'ZELADORIA' || s.tipo_fluxo === 'ZELADORIA' || s.id === 'srv-14' || (s.nome && (s.nome.toLowerCase().includes('iluminação') || s.nome.toLowerCase().includes('lixo') || s.nome.toLowerCase().includes('vias') || s.nome.toLowerCase().includes('limpeza') || s.nome.toLowerCase().includes('transporte'))));
+    }
+
+    let servicoPendenteAgendamento = null;
+
+    function abrirModalConfirmacaoCidadao(idServico) {
+      servicoPendenteAgendamento = idServico;
+      const s = servicos.find(item => item.id === idServico);
+
+      if (cidadaoLogado) {
+        document.getElementById('auth-cid-nome').value = cidadaoLogado.nome || '';
+        document.getElementById('auth-cid-cpf').value = cidadaoLogado.cpf || '';
+        document.getElementById('auth-cid-tel').value = cidadaoLogado.tel || '';
+        document.getElementById('auth-cid-email').value = cidadaoLogado.email || '';
+      }
+
+      const selectCidade = document.getElementById('auth-cid-cidade');
+      if (selectCidade) {
+        if (cidadaoLogado && cidadaoLogado.cidade) {
+          const matchCidade = prefeituras.find(p => p.cidade.toLowerCase() === cidadaoLogado.cidade.toLowerCase());
+          selectCidade.value = matchCidade ? matchCidade.id : prefeituraAtual.id;
+        } else {
+          selectCidade.value = prefeituraAtual.id;
+        }
+      }
+
+      const nomeServ = s ? s.nome : 'Serviço Municipal';
+      const titulo = document.getElementById('titulo-modal-auth');
+      const subtitulo = document.getElementById('subtitulo-modal-auth');
+      const btnSubmit = document.getElementById('btn-auth-submit');
+
+      if (titulo) titulo.innerText = 'Confirme seus Dados para Agendamento';
+      if (subtitulo) subtitulo.innerHTML = `Por favor, confirme seus dados e o município para prosseguir com <strong>${nomeServ}</strong>:`;
+      if (btnSubmit) btnSubmit.innerText = 'Confirmar Dados e Continuar para Agendamento ➔';
+
+      document.getElementById('modal-auth-cidadao').classList.remove('hidden');
+    }
+
+    function fecharModalAuthCidadao() {
+      servicoPendenteAgendamento = null;
+      document.getElementById('modal-auth-cidadao').classList.add('hidden');
+    }
+
+    function abrirFormularioServico(idServico, jaConfirmado = false) {
+      if (!jaConfirmado) {
+        abrirModalConfirmacaoCidadao(idServico);
+        return;
+      }
+
+      const s = servicos.find(item => item.id === idServico);
+      if (!s) return;
+
+      document.getElementById('servico-id-selecionado').value = s.id;
+      document.getElementById('titulo-form-servico').innerText = `${s.icone || '📌'} ${s.nome}`;
+      document.getElementById('form-solicitacao').classList.remove('hidden');
+
+      const isCampo72h = verificarSeEhServicoCampo(s);
+
+      // Exibir blocos
+      document.getElementById('bloco-agenda').classList.toggle('hidden', isCampo72h || !s.exige_unidade_saude);
+      document.getElementById('bloco-endereco').classList.toggle('hidden', !s.exige_endereco && !isCampo72h);
+
+      // Personalização de Unidades de Atendimento (Médico vs Dentista vs Geral)
+      if (s.exige_unidade_saude) {
+        const ubsSelect = document.getElementById('cid-ubs');
+        if (ubsSelect) {
+          const nomeLower = (s.nome || '').toLowerCase();
+          if (s.id === 'srv-01b' || nomeLower.includes('odonto') || nomeLower.includes('dentista')) {
+            ubsSelect.innerHTML = `
+              <option value="CEO - Centro de Especialidades Odontológicas">CEO - Centro de Especialidades Odontológicas</option>
+              <option value="UBS Central (Gabinete Odontológico)">UBS Central (Gabinete Odontológico)</option>
+              <option value="UBS Bairro Novo (Consultório Dentário)">UBS Bairro Novo (Consultório Dentário)</option>
+              <option value="Unidade Odontológica Móvel / Zona Rural">Unidade Odontológica Móvel / Zona Rural</option>
+            `;
+          } else if (s.id === 'srv-01' || nomeLower.includes('médic') || nomeLower.includes('clínico') || nomeLower.includes('pediatr')) {
+            ubsSelect.innerHTML = `
+              <option value="UBS Central - Consultório Clínico Geral e Pediatria">UBS Central - Consultório Clínico Geral e Pediatria</option>
+              <option value="UBS Bairro Novo - Atendimento Clínico">UBS Bairro Novo - Atendimento Clínico</option>
+              <option value="UBS Zona Rural - Posto de Saúde">UBS Zona Rural - Posto de Saúde</option>
+              <option value="Policlínica Municipal Especializada">Policlínica Municipal Especializada</option>
+            `;
+          } else {
+            ubsSelect.innerHTML = `
+              <option value="UBS Central">UBS Central</option>
+              <option value="UBS Bairro Novo">UBS Bairro Novo</option>
+              <option value="UBS Zona Rural">UBS Zona Rural</option>
+              <option value="Agência / Sede Municipal">Agência / Sede Municipal</option>
+            `;
+          }
+        }
+      }
+
+      // Banner dinâmico
+      const banner = document.getElementById('banner-tipo-servico');
+      const btnSubmit = document.getElementById('btn-submit-solicitacao');
+      const prazoLbl = document.getElementById('prazo-form-servico');
+
+      if (isCampo72h) {
+        banner.className = 'p-3 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs space-y-1';
+        banner.innerHTML = `
+          <div class="flex items-center gap-1.5 font-bold text-emerald-900">
+            <span>🚚</span> <span>Agendamento Direto em Campo (Sem Espera de Confirmação)</span>
+          </div>
+          <p class="text-[11px] leading-relaxed">
+            Para este serviço com endereço, o agendamento é feito <strong>direto</strong>! Assim que uma equipe estiver disponível, ela irá até o local indicado no prazo <strong>máximo de até 72 horas</strong>.
+          </p>
+        `;
+        prazoLbl.className = 'text-[10px] text-emerald-700 font-bold';
+        prazoLbl.innerText = '⚡ Agendamento Direto • Equipe no local em até 72 horas';
+        btnSubmit.innerText = 'Confirmar e Agendar Direto (Equipe no Local em até 72h)';
+        btnSubmit.className = 'w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl text-xs shadow-md transition transform active:scale-95';
+      } else {
+        banner.className = 'p-3 rounded-2xl bg-blue-50 border border-blue-200 text-blue-950 text-xs space-y-1';
+        banner.innerHTML = `
+          <div class="flex items-center gap-1.5 font-bold text-blue-900">
+            <span>📅</span> <span>Agendamento de Atendimento Presencial</span>
+          </div>
+          <p class="text-[11px] leading-relaxed">
+            Seu pedido será registrado com status <strong>PENDENTE</strong>. A prefeitura definirá o dia e horário oficial e enviará a confirmação para o seu WhatsApp cadastrado.
+          </p>
+        `;
+        prazoLbl.className = 'text-[10px] text-amber-700 font-semibold';
+        prazoLbl.innerText = 'Status inicial: 🟡 PENDENTE DE AGENDAMENTO';
+        btnSubmit.innerText = 'Registrar Solicitação e Gerar Protocolo';
+        btnSubmit.className = 'w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl text-xs shadow-md transition transform active:scale-95';
+      }
+
+      if (s.exige_endereco || isCampo72h) {
+        setTimeout(inicializarMapaLeaflet, 200);
+      }
+
+      if (cidadaoLogado) {
+        document.getElementById('cid-nome').value = cidadaoLogado.nome || '';
+        document.getElementById('cid-cpf').value = cidadaoLogado.cpf || '';
+        document.getElementById('cid-tel').value = cidadaoLogado.tel || '';
+      }
+
+      document.getElementById('form-solicitacao').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function fecharFormulario() {
+      document.getElementById('form-solicitacao').classList.add('hidden');
+    }
+
+    // MAPA COM OPENSTREETMAP (LEAFLET)
+    function inicializarMapaLeaflet() {
+      let lat = prefeituraAtual.lat || -20.8489;
+      let lng = prefeituraAtual.lng || -41.1128;
+
+      const mapContainer = document.getElementById('mapa-zeladoria');
+      if (!mapContainer) return;
+
+      if (!mapaLeaflet) {
+        mapaLeaflet = L.map('mapa-zeladoria').setView([lat, lng], 14);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap'
+        }).addTo(mapaLeaflet);
+
+        mapaLeaflet.on('click', async (e) => {
+          definirPontoNoMapa(e.latlng.lat, e.latlng.lng);
+          await preencherPorCoordenadas(e.latlng.lat, e.latlng.lng);
+        });
+      } else {
+        mapaLeaflet.invalidateSize();
+        mapaLeaflet.setView([lat, lng], 14);
+      }
+
+      definirPontoNoMapa(lat, lng);
+    }
+
+    function definirPontoNoMapa(lat, lng, popupHtml) {
+      coordenadasSelecionadas = { lat: Number(lat).toFixed(6), lng: Number(lng).toFixed(6) };
+      const textoPopup = popupHtml || `
+        <div style="font-size:11px; line-height:1.4;">
+          <strong style="color:#1e3a8a;">📍 Local Selecionado</strong><br>
+          <span style="color:#059669; font-weight:bold;">✓ Ponto GPS pronto para envio</span><br>
+          <small style="color:#64748b;">Lat: ${coordenadasSelecionadas.lat}, Lng: ${coordenadasSelecionadas.lng}</small><br>
+          <small style="color:#94a3b8;">Arraste o pino para ajustar a porta/poste</small>
+        </div>
+      `;
+
+      if (!marcadorMapa) {
+        marcadorMapa = L.marker([lat, lng], { draggable: true }).addTo(mapaLeaflet);
+        marcadorMapa.on('dragend', async (e) => {
+          const pos = e.target.getLatLng();
+          coordenadasSelecionadas = { lat: pos.lat.toFixed(6), lng: pos.lng.toFixed(6) };
+          await preencherPorCoordenadas(pos.lat, pos.lng);
+        });
+      } else {
+        marcadorMapa.setLatLng([lat, lng]);
+      }
+      marcadorMapa.bindPopup(textoPopup).openPopup();
+    }
+
+    // DISPARO AUTOMÁTICO AO DIGITAR (DEBOUNCE 450MS)
+    function agendarBuscaAutomaticaNoMapa() {
+      clearTimeout(debounceBuscaMapa);
+      debounceBuscaMapa = setTimeout(() => {
+        buscarEnderecoNoMapa();
+      }, 450);
+    }
+
+    // GEOCODIFICAÇÃO MULTI-CAMADA (RUA + NÚMERO + BAIRRO + CIDADE)
+    async function buscarEnderecoNoMapa() {
+      const rua = document.getElementById('cid-rua')?.value.trim();
+      const num = document.getElementById('cid-numero')?.value.trim();
+      const bairro = document.getElementById('cid-bairro')?.value.trim();
+      const statusLbl = document.getElementById('status-busca-mapa');
+      const sugestoesDiv = document.getElementById('sugestoes-endereco');
+
+      if (!rua || rua.length < 3) {
+        if (sugestoesDiv) sugestoesDiv.classList.add('hidden');
+        return;
+      }
+
+      if (statusLbl) {
+        statusLbl.innerHTML = '<span class="animate-spin inline-block mr-1">⏳</span> Localizando endereço no mapa automaticamente...';
+        statusLbl.className = 'text-[11px] font-bold text-amber-700 flex items-center';
+        statusLbl.classList.remove('hidden');
+      }
+
+      const cidade = prefeituraAtual.cidade;
+      const cleanRua = rua.replace(/^(rua|r\.|av\.|avenida|travessa|tv\.|alameda|rodovia|praça|praca)\s+/i, '').trim();
+
+      // Fila de tentativas da mais específica para a mais tolerante
+      const tentativas = [];
+      if (num) {
+        tentativas.push(`${rua} ${num}, ${bairro ? bairro + ', ' : ''}${cidade}, ES, Brasil`);
+        tentativas.push(`${rua}, ${num}, ${cidade}, ES, Brasil`);
+      }
+      if (bairro) {
+        tentativas.push(`${rua}, ${bairro}, ${cidade}, ES, Brasil`);
+      }
+      tentativas.push(`${rua}, ${cidade}, ES, Brasil`);
+      if (cleanRua.length > 2 && cleanRua.toLowerCase() !== rua.toLowerCase()) {
+        tentativas.push(`${cleanRua}, ${cidade}, ES, Brasil`);
+      }
+
+      let resultados = [];
+      for (const q of tentativas) {
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=br&limit=4`, {
+            headers: { 'User-Agent': 'ConectaPrefeituraSaaS/2.0' }
+          });
+          const dados = await res.json();
+          if (dados && dados.length > 0) {
+            resultados = dados;
+            break; // Achou correspondência na rua exata!
+          }
+        } catch (e) {
+          console.warn('Tentativa geocoding:', q, e);
+        }
+      }
+
+      if (resultados.length > 0) {
+        const melhor = resultados[0];
+        const lat = parseFloat(melhor.lat);
+        const lng = parseFloat(melhor.lon);
+
+        if (mapaLeaflet) {
+          mapaLeaflet.setView([lat, lng], 17); // Nível 17 = visão detalhada da rua/casas
+          const popupHtml = `
+            <div style="font-size:11px; line-height:1.4;">
+              <strong style="color:#1e3a8a;">📍 ${rua}${num ? ', nº ' + num : ''}</strong><br>
+              <span style="color:#475569;">${bairro ? bairro + ' - ' : ''}${cidade}</span><br>
+              <span style="color:#059669; font-weight:bold; font-size:11px;">✓ Localização confirmada!</span><br>
+              <small style="color:#94a3b8;">Arraste o pino para ajustar a porta/poste</small>
+            </div>
+          `;
+          definirPontoNoMapa(lat, lng, popupHtml);
+        }
+
+        if (statusLbl) {
+          statusLbl.innerHTML = `✓ Localizado no mapa: <strong>${rua}${num ? ', nº ' + num : ''}</strong> [Lat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}]`;
+          statusLbl.className = 'text-[11px] font-bold text-emerald-800 flex items-center gap-1';
+        }
+
+        // Sugestões de autocomplete se houver mais de uma
+        if (sugestoesDiv && resultados.length > 1) {
+          sugestoesDiv.innerHTML = resultados.map(r => `
+            <button type="button" onclick="selecionarSugestaoEndereco(${r.lat}, ${r.lon}, '${r.display_name.replace(/'/g, "\\'")}', '${rua}')" class="w-full text-left p-2.5 hover:bg-amber-50 text-[11px] text-slate-700 font-medium transition flex items-start gap-1.5">
+              <span>📍</span> <span>${r.display_name}</span>
+            </button>
+          `).join('');
+          sugestoesDiv.classList.remove('hidden');
+        } else if (sugestoesDiv) {
+          sugestoesDiv.classList.add('hidden');
+        }
+      } else {
+        // Tenta pelo bairro ou cidade para aproximar
+        try {
+          const qFallback = bairro ? `${bairro}, ${cidade}, ES, Brasil` : `${cidade}, ES, Brasil`;
+          const resF = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(qFallback)}&countrycodes=br&limit=1`, {
+            headers: { 'User-Agent': 'ConectaPrefeituraSaaS/2.0' }
+          });
+          const dadosF = await resF.json();
+          if (dadosF && dadosF.length > 0 && mapaLeaflet) {
+            const lat = parseFloat(dadosF[0].lat);
+            const lng = parseFloat(dadosF[0].lon);
+            mapaLeaflet.setView([lat, lng], 15);
+            definirPontoNoMapa(lat, lng);
+            if (statusLbl) {
+              statusLbl.innerHTML = `📍 Ponto aproximado em ${bairro || cidade}. Toque no mapa para posicionar a rua com precisão.`;
+              statusLbl.className = 'text-[11px] font-bold text-blue-800 flex items-center gap-1';
+            }
+          }
+        } catch (err) {
+          console.warn('Erro busca fallback:', err);
+        }
+      }
+    }
+
+    function selecionarSugestaoEndereco(lat, lng, displayName, ruaOriginal) {
+      if (mapaLeaflet) {
+        mapaLeaflet.setView([lat, lng], 17);
+        const popupHtml = `
+          <div style="font-size:11px; line-height:1.4;">
+            <strong style="color:#1e3a8a;">📍 ${ruaOriginal || 'Endereço Escolhido'}</strong><br>
+            <span style="color:#059669; font-weight:bold;">✓ Ponto selecionado</span><br>
+            <small style="color:#64748b;">${displayName}</small>
+          </div>
+        `;
+        definirPontoNoMapa(lat, lng, popupHtml);
+      }
+      const sugestoesDiv = document.getElementById('sugestoes-endereco');
+      if (sugestoesDiv) sugestoesDiv.classList.add('hidden');
+
+      const statusLbl = document.getElementById('status-busca-mapa');
+      if (statusLbl) {
+        statusLbl.innerHTML = `✓ Ponto confirmado no mapa: [Lat: ${Number(lat).toFixed(5)}, Lng: ${Number(lng).toFixed(5)}]`;
+        statusLbl.className = 'text-[11px] font-bold text-emerald-800 flex items-center gap-1';
+      }
+    }
+
+    // GEOCODIFICAÇÃO REVERSA AO TOCAR/ARRASTAR NO MAPA
+    async function preencherPorCoordenadas(lat, lng) {
+      const statusLbl = document.getElementById('status-busca-mapa');
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&countrycodes=br`, {
+          headers: { 'User-Agent': 'ConectaPrefeituraSaaS/2.0' }
+        });
+        const data = await res.json();
+        if (data && data.address) {
+          const road = data.address.road || data.address.pedestrian || data.address.neighbourhood || '';
+          const suburb = data.address.suburb || data.address.neighbourhood || '';
+          const houseNumber = data.address.house_number || '';
+
+          const ruaInput = document.getElementById('cid-rua');
+          const numInput = document.getElementById('cid-numero');
+          const bairroInput = document.getElementById('cid-bairro');
+
+          if (road && (!ruaInput.value || ruaInput.value.length < 3)) {
+            ruaInput.value = road;
+          }
+          if (houseNumber && !numInput.value) {
+            numInput.value = houseNumber;
+          }
+          if (suburb && !bairroInput.value) {
+            bairroInput.value = suburb;
+          }
+
+          if (statusLbl) {
+            statusLbl.innerHTML = `✓ Ponto exato confirmado no mapa: <strong>${road || 'Local Marcado'}</strong> [Lat: ${Number(lat).toFixed(5)}, Lng: ${Number(lng).toFixed(5)}]`;
+            statusLbl.className = 'text-[11px] font-bold text-emerald-800 flex items-center gap-1';
+            statusLbl.classList.remove('hidden');
+          }
+        }
+      } catch (err) {
+        console.warn('Erro ao obter endereço reverso:', err);
+      }
+    }
+
+    // CAPTURA DE LOCALIZAÇÃO GPS DO APARELHO
+    function obterLocalizacaoAtual() {
+      if (!navigator.geolocation) return alert('Geolocalização não suportada no seu navegador.');
+      const statusLbl = document.getElementById('status-busca-mapa');
+      if (statusLbl) {
+        statusLbl.innerHTML = '<span class="animate-spin inline-block mr-1">⏳</span> Acessando antena GPS do seu dispositivo...';
+        statusLbl.className = 'text-[11px] font-bold text-amber-700 flex items-center';
+        statusLbl.classList.remove('hidden');
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          if (mapaLeaflet) {
+            mapaLeaflet.setView([lat, lng], 17);
+            definirPontoNoMapa(lat, lng);
+          }
+          await preencherPorCoordenadas(lat, lng);
+          if (statusLbl) {
+            statusLbl.innerHTML = `✓ Localização GPS do seu celular capturada com precisão! [Lat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}]`;
+            statusLbl.className = 'text-[11px] font-bold text-emerald-800 flex items-center gap-1';
+          }
+        },
+        (err) => {
+          alert('Não foi possível obter o sinal GPS: ' + err.message + '. Por favor, digite o nome da sua rua.');
+          if (statusLbl) statusLbl.classList.add('hidden');
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    }
+
+    // REGISTRO DE SOLICITAÇÃO (AGENDAMENTO DIRETO 72H OU PENDENTE)
+    async function enviarSolicitacao(e) {
+      e.preventDefault();
+      const idServico = document.getElementById('servico-id-selecionado').value;
+      const s = servicos.find(item => item.id === idServico);
+
+      const nomeCid = document.getElementById('cid-nome').value.trim();
+      const cpfCid = document.getElementById('cid-cpf').value.trim();
+      const telCid = document.getElementById('cid-tel').value.trim();
+      const turnoPref = s.exige_unidade_saude ? document.getElementById('cid-turno')?.value : null;
+      const ubsPref = s.exige_unidade_saude ? document.getElementById('cid-ubs')?.value : null;
+      const desc = document.getElementById('cid-desc').value.trim();
+
+      // Monta endereço completo e dados de GPS
+      const rua = document.getElementById('cid-rua')?.value.trim() || '';
+      const num = document.getElementById('cid-numero')?.value.trim() || '';
+      const bairro = document.getElementById('cid-bairro')?.value.trim() || '';
+      const ref = document.getElementById('cid-referencia')?.value.trim() || '';
+      const latGps = coordenadasSelecionadas?.lat || null;
+      const lngGps = coordenadasSelecionadas?.lng || null;
+      const coordsTxt = latGps && lngGps ? ` [GPS: ${latGps}, ${lngGps}]` : '';
+      const enderecoCompleto = rua ? `${rua}, nº ${num || 'S/N'} - Bairro ${bairro}${ref ? ' (' + ref + ')' : ''}${coordsTxt}` : null;
+
+      // Identifica o setor responsável competente
+      const setorInfo = {
+        sigla: s.secretaria_sigla || SETORES_MUNICIPAIS[s.categoria]?.sigla || 'SEGOV',
+        nome: s.secretaria_nome || SETORES_MUNICIPAIS[s.categoria]?.nome || 'Gabinete Municipal',
+        icone: s.icone || SETORES_MUNICIPAIS[s.categoria]?.icone || '🏛️'
+      };
+      const googleMapsUrl = latGps && lngGps ? `https://www.google.com/maps?q=${latGps},${lngGps}` : '';
+      const wazeUrl = latGps && lngGps ? `https://waze.com/ul?ll=${latGps},${lngGps}&navigate=yes` : '';
+      const googleMapsRotaUrl = latGps && lngGps ? `https://www.google.com/maps/dir/?api=1&destination=${latGps},${lngGps}` : '';
+
+      const isCampo72h = verificarSeEhServicoCampo(s);
+
+      const btn = document.getElementById('btn-submit-solicitacao');
+      const textoBotaoOriginal = isCampo72h ? 'Confirmar e Agendar Direto (Equipe no Local em até 72h)' : 'Registrar Solicitação e Gerar Protocolo';
+      btn.innerText = 'Enviando ao município com segurança...';
+      btn.disabled = true;
+
+      const dataHoraAtual = new Date();
+
+      const pacotePersonalizado = {
+        cidadao_nome: nomeCid,
+        cidadao_cpf: cpfCid,
+        cidadao_telefone: telCid,
+        servico_id: s.id,
+        servico_nome: s.nome,
+        servico_icone: s.icone || '📌',
+        setor_responsavel: setorInfo.nome,
+        setor_sigla: setorInfo.sigla,
+        rua: rua,
+        numero: num,
+        bairro: bairro,
+        referencia: ref,
+        latitude: latGps,
+        longitude: lngGps,
+        google_maps_url: googleMapsUrl,
+        waze_url: wazeUrl,
+        google_maps_rota: googleMapsRotaUrl,
+        tipo_atendimento: isCampo72h ? 'CAMPO_72H' : 'PRESENCIAL'
+      };
+
+      const payloadCompleto = {
+        prefeitura_id: prefeituraAtual.id,
+        servico_id: s.id,
+        servico_nome: s.nome,
+        servico_icone: s.icone || '📌',
+        setor_responsavel: setorInfo.nome,
+        setor_sigla: setorInfo.sigla,
+        cidadao_nome: nomeCid,
+        cidadao_cpf: cpfCid,
+        cidadao_telefone: telCid,
+        cartao_sus: null,
+        endereco_gps: enderecoCompleto,
+        endereco_rua: rua,
+        endereco_numero: num,
+        endereco_bairro: bairro,
+        endereco_referencia: ref,
+        latitude: latGps,
+        longitude: lngGps,
+        google_maps_url: googleMapsUrl,
+        waze_url: wazeUrl,
+        google_maps_rota: googleMapsRotaUrl,
+        unidade_preferencia: ubsPref,
+        turno_preferencia: turnoPref,
+        tipo_atendimento: isCampo72h ? 'CAMPO_72H' : 'PRESENCIAL',
+        descricao: desc,
+        respostas_personalizadas: pacotePersonalizado
+      };
+
+      let dbRecord = null;
+      try {
+        const { data, error } = await supabaseClient.rpc('abrir_solicitacao', { payload: payloadCompleto });
+        if (error) throw error;
+        if (!data || data.success === false) {
+          throw new Error(data?.message || 'Erro ao registrar solicitação.');
+        }
+        dbRecord = data;
+      } catch (err) {
+        console.error('Erro ao registrar no Supabase:', err);
+        btn.innerText = textoBotaoOriginal;
+        btn.disabled = false;
+        alert('Não foi possível enviar seu pedido ao município: ' + (err.message || 'Falha de comunicação.') + '\n\nSeus dados foram mantidos no formulário. Por favor, tente novamente.');
+        return; // NUNCA exibe comprovante falso nem salva pedido em localStorage
+      }
+
+      // Salva apenas os dados do perfil do cidadão para auto-preenchimento
+      cidadaoLogado = { nome: nomeCid, cpf: cpfCid, tel: telCid, cidade: prefeituraAtual.cidade, uf: 'ES' };
+      localStorage.setItem('conecta_cidadao', JSON.stringify(cidadaoLogado));
+      atualizarBadgeCidadao();
+
+      btn.innerText = textoBotaoOriginal;
+      btn.disabled = false;
+
+      fecharFormulario();
+      e.target.reset();
+
+      // Configuração do Comprovante Modal Oficial com dados reais retornados do banco
+      const protocoloOficial = dbRecord.protocolo || '---';
+      const codigoPublicoOficial = dbRecord.protocolo_publico || '---';
+
+      document.getElementById('modal-comp-protocolo').innerText = `#${protocoloOficial}`;
+      document.getElementById('modal-comp-codigo-publico').innerText = codigoPublicoOficial;
+      document.getElementById('modal-comp-data').innerText = `Data de Abertura: ${dataHoraAtual.toLocaleDateString('pt-BR')} às ${dataHoraAtual.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}`;
+      document.getElementById('modal-comp-cidadao').innerText = nomeCid;
+      document.getElementById('modal-comp-cpf').innerText = cpfCid;
+      document.getElementById('modal-comp-servico').innerText = s.nome;
+      document.getElementById('modal-comp-setor').innerText = `${setorInfo.nome} (${setorInfo.sigla})`;
+      document.getElementById('modal-comp-endereco-completo').innerText = enderecoCompleto || `${prefeituraAtual.cidade} - ${prefeituraAtual.uf}`;
+
+      const mapaBox = document.getElementById('modal-comp-mapa-box');
+      const mapaLink = document.getElementById('modal-comp-mapa-link');
+      if (googleMapsUrl && mapaBox && mapaLink) {
+        mapaLink.href = googleMapsUrl;
+        mapaBox.classList.remove('hidden');
+      } else if (mapaBox) {
+        mapaBox.classList.add('hidden');
+      }
+
+      const iconeTopo = document.getElementById('modal-comp-icone-topo');
+      const badgeStatus = document.getElementById('modal-comp-badge-status');
+      const avisoBox = document.getElementById('modal-comp-aviso-box');
+
+      if (isCampo72h) {
+        iconeTopo.className = 'w-14 h-14 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-2xl mx-auto shadow-inner';
+        iconeTopo.innerText = '🚚';
+        badgeStatus.className = 'text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 border border-emerald-300 px-3 py-1 rounded-full';
+        badgeStatus.innerText = 'Status: AGENDADO DIRETO (ORDEM DE SERVIÇO EMITIDA)';
+
+        avisoBox.className = 'bg-emerald-50 p-3 rounded-xl border border-emerald-300 text-emerald-950 space-y-1';
+        avisoBox.innerHTML = `
+          <p class="font-bold flex items-center gap-1.5 text-emerald-900">
+            <span>⚡</span> <span>Atendimento Direto Despachado ao Setor:</span>
+          </p>
+          <p class="leading-relaxed">
+            Seu pedido e localização GPS foram transmitidos para a <strong>${setorInfo.nome} (${setorInfo.sigla})</strong>. 
+            Assim que a equipe estiver disponível, ela irá até o local indicado no prazo <strong>máximo de até 72 horas</strong> sem necessidade de confirmação prévia.
+          </p>
+        `;
+      } else {
+        iconeTopo.className = 'w-14 h-14 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center text-2xl mx-auto shadow-inner';
+        iconeTopo.innerText = '⏳';
+        badgeStatus.className = 'text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-100 border border-amber-300 px-3 py-1 rounded-full';
+        badgeStatus.innerText = 'Status: PENDENTE DE CONFIRMAÇÃO';
+
+        avisoBox.className = 'bg-amber-50 p-3 rounded-xl border border-amber-300 text-amber-950 space-y-1';
+        avisoBox.innerHTML = `
+          <p class="font-bold flex items-center gap-1.5 text-amber-900">
+            <span>📱</span> <span>Confirmação da Secretaria:</span>
+          </p>
+          <p class="leading-relaxed">
+            Seu pedido foi encaminhado para a <strong>${setorInfo.nome}</strong>. Assim que a equipe confirmar a data e o horário oficial, você receberá a confirmação completa no WhatsApp cadastrado.
+          </p>
+        `;
+      }
+
+      document.getElementById('modal-comprovante-protocolo').classList.remove('hidden');
+    }
+
+    function fecharComprovanteProtocolo() {
+      document.getElementById('modal-comprovante-protocolo').classList.add('hidden');
+      document.getElementById('filtro-cpf-cidadao').value = cidadaoLogado?.cpf || '';
+      filtrarPedidosPorCpf();
+      mudarAbaApp('protocolos');
+    }
+
+    // 6. CONSULTA DE PROTOCOLOS DO CIDADÃO (RPC DIRETA)
+    async function filtrarPedidosPorCpf() {
+      const cpfInput = document.getElementById('filtro-cpf-cidadao');
+      const cpfBuscaLimpo = (cpfInput ? cpfInput.value : '').replace(/\D/g, '');
+      const lista = document.getElementById('lista-protocolos-cidadao');
+      const contBadge = document.getElementById('cont-pedidos-cid');
+
+      if (!cpfBuscaLimpo) {
+        if (lista) lista.innerHTML = '<p class="text-center text-xs text-slate-500 py-4">Digite seu CPF acima para buscar seus protocolos.</p>';
+        if (contBadge) contBadge.innerText = '0';
+        return;
+      }
+
+      if (lista) {
+        lista.innerHTML = '<p class="text-center text-xs text-blue-600 py-6"><span class="animate-spin inline-block mr-1">⏳</span> Buscando seus pedidos na base oficial de ' + prefeituraAtual.cidade + '...</p>';
+      }
+
+      try {
+        const { data: solsCidadao, error } = await supabaseClient.rpc('listar_meus_pedidos', {
+          p_cpf: cpfBuscaLimpo,
+          p_prefeitura_id: prefeituraAtual.id
+        });
+
+        if (error) throw error;
+
+        const count = solsCidadao ? solsCidadao.length : 0;
+        if (contBadge) contBadge.innerText = count;
+
+        if (!solsCidadao || solsCidadao.length === 0) {
+          lista.innerHTML = `<p class="text-center text-xs text-slate-500 py-6">Nenhum pedido encontrado para este CPF em ${prefeituraAtual.cidade}.</p>`;
+          return;
+        }
+
+        lista.innerHTML = solsCidadao.map(sol => {
+          const is72h = sol.tipo_atendimento === 'CAMPO_72H';
+          const setorNome = sol.setor_responsavel || 'Secretaria Competente';
+          const setorSigla = sol.setor_sigla ? `(${sol.setor_sigla})` : '';
+          const lat = sol.latitude;
+          const lng = sol.longitude;
+          const mapsUrl = sol.google_maps_url || (lat && lng ? `https://www.google.com/maps?q=${lat},${lng}` : null);
+
+          let badgeClass = 'bg-amber-100 text-amber-800';
+          let badgeTexto = '🟡 PENDENTE DE CONFIRMAÇÃO';
+          if (sol.status === 'CONCLUIDO') {
+            badgeClass = 'bg-emerald-100 text-emerald-800';
+            badgeTexto = '✓ CONCLUÍDO';
+          } else if (is72h) {
+            badgeClass = 'bg-emerald-100 text-emerald-900 border border-emerald-300';
+            badgeTexto = '🚚 AGENDADO DIRETO (ATÉ 72H)';
+          } else if (sol.status === 'AGENDADO') {
+            badgeClass = 'bg-blue-100 text-blue-800';
+            badgeTexto = '📅 AGENDADO';
+          }
+
+          return `
+            <div class="p-4 border rounded-2xl bg-white space-y-2.5 shadow-sm">
+              <div class="flex justify-between items-start gap-2">
+                <span class="font-bold text-xs text-slate-800">${sol.servico_icone || '📋'} ${sol.servico_nome || 'Serviço Municipal'}</span>
+                <span class="text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0 ${badgeClass}">
+                  ${badgeTexto}
+                </span>
+              </div>
+              <div class="text-[11px] text-slate-600 space-y-1">
+                <p><strong>Protocolo #${sol.protocolo}</strong> (${sol.protocolo_publico || 'Seguro'})</p>
+                <p><span class="font-bold text-indigo-900">🏢 Setor Responsável:</span> ${setorNome} ${setorSigla}</p>
+                ${sol.endereco_gps ? `
+                  <div class="bg-amber-50/70 p-2.5 rounded-xl border border-amber-200 mt-1">
+                    <p class="text-amber-950 font-medium">📍 <strong>Local:</strong> ${sol.endereco_gps}</p>
+                    ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" class="inline-flex items-center gap-1 text-[11px] text-blue-700 font-bold hover:underline mt-1">🗺️ Ver no Google Maps ↗</a>` : ''}
+                  </div>
+                ` : ''}
+                ${sol.unidade_preferencia ? `<p>🏥 <strong>Unidade:</strong> ${sol.unidade_preferencia} ${sol.turno_preferencia ? '(' + sol.turno_preferencia + ')' : ''}</p>` : ''}
+              </div>
+              ${sol.resposta_prefeitura ? `<div class="bg-blue-50 text-blue-900 p-2.5 rounded-xl text-xs font-medium border border-blue-200">💬 <strong>Situação:</strong> ${sol.resposta_prefeitura}</div>` : ''}
+              ${sol.descricao ? `<p class="text-xs text-slate-700 bg-slate-50 p-2 rounded-xl border border-slate-200">"${sol.descricao}"</p>` : ''}
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error('Erro ao listar pedidos do cidadão:', err);
+        if (lista) lista.innerHTML = '<p class="text-center text-xs text-rose-600 py-4">Erro ao buscar pedidos no município. Tente novamente mais tarde.</p>';
+      }
+    }
+
+    // 7. CONSULTA PÚBLICA DE PROTOCOLO (RPC DIRETA)
+    function abrirModalConsultaPublica() {
+      document.getElementById('resultado-consulta-publica').classList.add('hidden');
+      document.getElementById('modal-consulta-publica').classList.remove('hidden');
+    }
+
+    function fecharModalConsultaPublica() {
+      document.getElementById('modal-consulta-publica').classList.add('hidden');
+    }
+
+    async function executarConsultaPublica(e) {
+      e.preventDefault();
+      const proto = document.getElementById('cons-protocolo').value.trim();
+      const cpfFinal = document.getElementById('cons-cpf-final').value.replace(/\D/g, '');
+      const containerRes = document.getElementById('resultado-consulta-publica');
+      const btn = e.target.querySelector('button[type="submit"]');
+
+      if (!proto || cpfFinal.length < 4) {
+        alert('Por favor, informe o protocolo/código público e os 4 últimos dígitos do seu CPF.');
+        return;
+      }
+
+      if (btn) btn.disabled = true;
+      containerRes.innerHTML = '<p class="text-center text-xs text-blue-600 py-3"><span class="animate-spin inline-block mr-1">⏳</span> Consultando base oficial do município...</p>';
+      containerRes.classList.remove('hidden');
+
+      try {
+        const { data: sol, error } = await supabaseClient.rpc('consultar_protocolo', {
+          p_cpf: cpfFinal,
+          p_codigo: proto
+        });
+
+        if (error || !sol || sol.success === false) {
+          containerRes.innerHTML = `
+            <div class="text-rose-700 bg-rose-50 p-3 rounded-xl border border-rose-200 text-xs">
+              ❌ ${sol?.message || 'Nenhum protocolo localizado com esse número e os 4 dígitos finais do CPF informados.'}
+            </div>
+          `;
+          return;
+        }
+
+        const is72h = sol.tipo_atendimento === 'CAMPO_72H';
+        let badgeClass = 'bg-amber-100 text-amber-800';
+        let badgeTexto = '🟡 PENDENTE DE CONFIRMAÇÃO';
+        if (sol.status === 'CONCLUIDO') {
+          badgeClass = 'bg-emerald-100 text-emerald-800';
+          badgeTexto = '✓ CONCLUÍDO';
+        } else if (is72h) {
+          badgeClass = 'bg-emerald-100 text-emerald-900 border border-emerald-300';
+          badgeTexto = '🚚 AGENDADO DIRETO (ATÉ 72H)';
+        } else if (sol.status === 'AGENDADO') {
+          badgeClass = 'bg-blue-100 text-blue-800';
+          badgeTexto = '📅 AGENDADO';
+        }
+
+        const dataFormatada = sol.created_at ? new Date(sol.created_at).toLocaleDateString('pt-BR') : '';
+
+        containerRes.innerHTML = `
+          <div class="space-y-2.5">
+            <div class="flex justify-between items-center border-b pb-2">
+              <span class="font-bold text-slate-800 text-xs">${sol.servico_nome || 'Serviço Municipal'}</span>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${badgeClass}">
+                ${badgeTexto}
+              </span>
+            </div>
+            <p class="text-xs text-slate-600">Protocolo #${sol.protocolo} | Código Público: <strong>${sol.protocolo_publico || '---'}</strong></p>
+            <p class="text-xs text-slate-600">🏛️ Município: ${sol.cidade || prefeituraAtual.cidade} - ${sol.uf || 'ES'} ${dataFormatada ? ' • ' + dataFormatada : ''}</p>
+            ${sol.endereco_gps ? `<p class="text-xs text-slate-700">📍 <strong>Local:</strong> ${sol.endereco_gps}</p>` : ''}
+            ${sol.resposta_prefeitura ? `<div class="bg-blue-50 p-2.5 rounded-xl text-blue-950 font-medium border border-blue-200 text-xs">💬 <strong>Situação Oficial:</strong><br>${sol.resposta_prefeitura}</div>` : ''}
+          </div>
+        `;
+      } catch (err) {
+        console.error('Erro na consulta pública:', err);
+        containerRes.innerHTML = `
+          <div class="text-rose-700 bg-rose-50 p-3 rounded-xl border border-rose-200 text-xs">
+            ❌ Erro de comunicação com o servidor municipal. Tente novamente.
+          </div>
+        `;
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    // 8. IDENTIFICAÇÃO DO CIDADÃO & CONTADORES
+    function atualizarContadoresServicos() {
+      const total = servicos.length;
+      const btnTodos = document.getElementById('btn-filtro-cat-todos');
+      if (btnTodos) btnTodos.innerText = `Todos (${total})`;
+
+      const lblCatalogo = document.getElementById('lbl-aba-catalogo-num');
+      if (lblCatalogo) lblCatalogo.innerText = total;
+    }
+
+    function carregarCidadaoSalvo() {
+      const salvo = localStorage.getItem('conecta_cidadao');
+      if (salvo) {
+        try {
+          cidadaoLogado = JSON.parse(salvo);
+          atualizarBadgeCidadao();
+        } catch (e) {
+          console.warn('Erro ao ler conecta_cidadao:', e);
+        }
+      }
+    }
+
+    function atualizarBadgeCidadao() {
+      if (cidadaoLogado) {
+        const primeiroNome = (cidadaoLogado.nome || 'Cidadão').split(' ')[0];
+        const lblAuth = document.getElementById('lbl-auth-user');
+        if (lblAuth) lblAuth.innerText = `👤 ${primeiroNome}`;
+        const saudacao = document.getElementById('app-saudacao-cidadao');
+        if (saudacao) saudacao.innerText = `Olá, ${primeiroNome}!`;
+        const cidMorador = document.getElementById('app-cidade-cidadao');
+        if (cidMorador) cidMorador.innerText = `Morador(a) de ${cidadaoLogado.cidade || prefeituraAtual.cidade} - ES`;
+        const filtroCpf = document.getElementById('filtro-cpf-cidadao');
+        if (filtroCpf && !filtroCpf.value) filtroCpf.value = cidadaoLogado.cpf || '';
+      }
+    }
+
+    function abrirModalAuthCidadao() {
+      servicoPendenteAgendamento = null;
+      if (cidadaoLogado) {
+        document.getElementById('auth-cid-nome').value = cidadaoLogado.nome || '';
+        document.getElementById('auth-cid-cpf').value = cidadaoLogado.cpf || '';
+        document.getElementById('auth-cid-tel').value = cidadaoLogado.tel || '';
+        document.getElementById('auth-cid-email').value = cidadaoLogado.email || '';
+      }
+
+      const selectCidade = document.getElementById('auth-cid-cidade');
+      if (selectCidade) {
+        if (cidadaoLogado && cidadaoLogado.cidade) {
+          const matchCidade = prefeituras.find(p => p.cidade.toLowerCase() === cidadaoLogado.cidade.toLowerCase());
+          selectCidade.value = matchCidade ? matchCidade.id : prefeituraAtual.id;
+        } else {
+          selectCidade.value = prefeituraAtual.id;
+        }
+      }
+
+      const titulo = document.getElementById('titulo-modal-auth');
+      const subtitulo = document.getElementById('subtitulo-modal-auth');
+      const btnSubmit = document.getElementById('btn-auth-submit');
+
+      if (titulo) titulo.innerText = 'Perfil do Cidadão';
+      if (subtitulo) subtitulo.innerText = 'Seus dados ficam gravados no aparelho para facilitar seus próximos pedidos.';
+      if (btnSubmit) btnSubmit.innerText = 'Salvar Meus Dados e Conectar';
+
+      document.getElementById('modal-auth-cidadao').classList.remove('hidden');
+    }
+
+    function fecharModalAuthCidadao() {
+      servicoPendenteAgendamento = null;
+      document.getElementById('modal-auth-cidadao').classList.add('hidden');
+    }
+
+    function salvarIdentificacaoExpressa(e) {
+      e.preventDefault();
+      const nome = document.getElementById('auth-cid-nome').value.trim();
+      const cpf = document.getElementById('auth-cid-cpf').value.trim();
+      const tel = document.getElementById('auth-cid-tel').value.trim();
+      const email = document.getElementById('auth-cid-email').value.trim();
+      const cidadeId = document.getElementById('auth-cid-cidade').value;
+
+      if (!nome || !cpf || !tel) {
+        alert('Por favor, preencha todos os campos obrigatórios (Nome, CPF e WhatsApp com DDD).');
+        return;
+      }
+
+      const prefEscolhida = prefeituras.find(p => p.id === cidadeId) || prefeituraAtual;
+
+      cidadaoLogado = { 
+        nome: nome, 
+        cpf: cpf, 
+        tel: tel, 
+        email: email, 
+        cidade: prefEscolhida.cidade, 
+        uf: 'ES' 
+      };
+      localStorage.setItem('conecta_cidadao', JSON.stringify(cidadaoLogado));
+
+      if (cidadeId && cidadeId !== prefeituraAtual.id) {
+        aoTrocarCidade(cidadeId);
+      }
+
+      atualizarBadgeCidadao();
+      document.getElementById('modal-auth-cidadao').classList.add('hidden');
+
+      if (servicoPendenteAgendamento) {
+        const idServ = servicoPendenteAgendamento;
+        servicoPendenteAgendamento = null;
+        abrirFormularioServico(idServ, true);
+      } else {
+        alert(`Bem-vindo(a), ${nome.split(' ')[0]}! Seus dados foram salvos com sucesso.`);
+      }
+    }
+
+    // 9. NAVEGAÇÃO ENTRE ABAS DO APP E MÁSCARAS
+    function mudarAbaApp(aba) {
+      document.getElementById('conteudo-servicos').classList.toggle('hidden', aba !== 'servicos');
+      document.getElementById('conteudo-protocolos').classList.toggle('hidden', aba !== 'protocolos');
+      document.getElementById('aba-servicos').className = aba === 'servicos' ? 'flex-1 py-3 text-xs font-bold text-blue-700 border-b-2 border-blue-700 transition' : 'flex-1 py-3 text-xs font-medium text-slate-500 hover:text-slate-800 transition';
+      document.getElementById('aba-protocolos').className = aba === 'protocolos' ? 'flex-1 py-3 text-xs font-bold text-blue-700 border-b-2 border-blue-700 transition' : 'flex-1 py-3 text-xs font-medium text-slate-500 hover:text-slate-800 transition';
+    }
+
+    function aplicarMascaraCPF(i) {
+      let v = i.value.replace(/\D/g, '').slice(0, 11);
+      v = v.replace(/(\d{3})(\d)/, '$1.$2');
+      v = v.replace(/(\d{3})(\d)/, '$1.$2');
+      v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+      i.value = v;
+    }
+
+    function aplicarMascaraTelefone(i) {
+      let v = i.value.replace(/\D/g, '').slice(0, 11);
+      if (v.length > 10) v = v.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
+      else if (v.length > 5) v = v.replace(/^(\d{2})(\d{4})(\d{0,4})$/, '($1) $2-$3');
+      else if (v.length > 2) v = v.replace(/^(\d{2})(\d{0,5})$/, '($1) $2');
+      i.value = v;
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,1957 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel Administrativo - ConectaPrefeitura SaaS Gov</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2226%22 font-size=%2224%22>🏛️</text></svg>">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Supabase JS Client v2 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Leaflet CSS & JS para Mapas -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    .leaflet-container { font-family: inherit; }
+    #modal-mapa-chamado { height: 260px; width: 100%; border-radius: 1rem; }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased selection:bg-blue-600 selection:text-white">
+
+  <!-- ==================== TELA DE LOGIN ==================== -->
+  <div id="tela-login" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950">
+    <div class="bg-slate-800/90 border border-slate-700/80 rounded-3xl max-w-md w-full p-8 space-y-6 shadow-2xl backdrop-blur-md">
+      <div class="text-center space-y-2">
+        <div class="w-16 h-16 bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded-2xl flex items-center justify-center text-3xl mx-auto shadow-inner">
+          🏛️
+        </div>
+        <h1 class="text-2xl font-black text-white tracking-tight">ConectaPrefeitura</h1>
+        <p class="text-xs text-blue-400 font-semibold uppercase tracking-wider">Painel de Gestão Municipal • Sul do ES</p>
+        <p class="text-xs text-slate-400">Acesso exclusivo para servidores e administradores autorizados.</p>
+      </div>
+
+      <div id="login-erro" class="hidden bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs p-3.5 rounded-xl font-medium"></div>
+
+      <form id="form-login" onsubmit="realizarLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1.5">E-mail Institucional</label>
+          <input type="email" id="login-email" required placeholder="servidor@prefeitura.gov.br" 
+                 class="w-full bg-slate-900/90 border border-slate-700 text-white rounded-xl p-3 text-xs outline-none focus:ring-2 focus:ring-blue-500 transition">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1.5">Senha de Acesso</label>
+          <input type="password" id="login-senha" required placeholder="••••••••" 
+                 class="w-full bg-slate-900/90 border border-slate-700 text-white rounded-xl p-3 text-xs outline-none focus:ring-2 focus:ring-blue-500 transition">
+        </div>
+
+        <button type="submit" id="btn-login-submit" 
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-xs shadow-lg transition transform active:scale-95 flex items-center justify-center gap-2">
+          <span>Entrar no Painel</span> <span>➔</span>
+        </button>
+      </form>
+
+      <div class="pt-2 border-t border-slate-700/60 text-center">
+        <a href="index.html" class="text-xs text-slate-400 hover:text-blue-400 transition font-medium">
+          ← Voltar para o App do Cidadão
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== PAINEL ADMINISTRATIVO (LOGADO) ==================== -->
+  <div id="painel-principal" class="hidden min-h-screen flex flex-col bg-slate-950">
+    
+    <!-- Topbar Oficial da Prefeitura -->
+    <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 shadow-md">
+      <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
+        
+        <!-- Brasão e Prefeitura -->
+        <div class="flex items-center gap-3">
+          <img id="admin-brasao-img" src="" alt="Brasão" class="w-9 h-9 rounded-xl object-cover bg-slate-800 border border-slate-700 shadow-sm">
+          <div>
+            <h2 id="admin-pref-nome" class="text-sm font-black text-white leading-tight">Prefeitura Municipal</h2>
+            <p id="admin-usuario-setor" class="text-[11px] text-blue-400 font-semibold">Gabinete Geral</p>
+          </div>
+        </div>
+
+        <!-- Ações do Servidor -->
+        <div class="flex items-center gap-3">
+          <div class="text-right hidden sm:block">
+            <p id="admin-user-nome" class="text-xs font-bold text-slate-200">Servidor</p>
+            <span id="admin-user-badge-papel" class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-blue-900/60 text-blue-300 border border-blue-700/60">
+              ADMIN
+            </span>
+          </div>
+
+          <button onclick="realizarLogout()" class="bg-slate-800 hover:bg-rose-900/40 text-slate-300 hover:text-rose-300 border border-slate-700 hover:border-rose-700/50 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+            <span>Sair</span> <span>🚪</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Navegação das 4 Abas -->
+      <div class="max-w-7xl mx-auto px-4 flex gap-1 overflow-x-auto border-t border-slate-800/80">
+        <button onclick="navegarAba('chamados')" id="aba-btn-chamados" 
+                class="px-4 py-2.5 text-xs font-bold border-b-2 border-blue-500 text-blue-400 transition flex items-center gap-1.5 whitespace-nowrap">
+          <span>📋</span> <span>Chamados</span>
+          <span id="badge-cont-chamados-pendentes" class="ml-1 bg-amber-500 text-slate-950 font-black text-[9px] px-1.5 py-0.2 rounded-full hidden">0</span>
+        </button>
+
+        <button onclick="navegarAba('indicadores')" id="aba-btn-indicadores" 
+                class="px-4 py-2.5 text-xs font-semibold text-slate-400 hover:text-slate-200 border-b-2 border-transparent transition flex items-center gap-1.5 whitespace-nowrap">
+          <span>📊</span> <span>Indicadores</span>
+        </button>
+
+        <button onclick="navegarAba('servicos')" id="aba-btn-servicos" 
+                class="px-4 py-2.5 text-xs font-semibold text-slate-400 hover:text-slate-200 border-b-2 border-transparent transition flex items-center gap-1.5 whitespace-nowrap">
+          <span>🏛️</span> <span>Secretarias e Serviços</span>
+        </button>
+
+        <button onclick="navegarAba('equipe')" id="aba-btn-equipe" 
+                class="px-4 py-2.5 text-xs font-semibold text-slate-400 hover:text-slate-200 border-b-2 border-transparent transition flex items-center gap-1.5 whitespace-nowrap hidden">
+          <span>👥</span> <span>Equipe de Servidores</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Conteúdo Dinâmico das Abas -->
+    <main class="max-w-7xl mx-auto w-full p-4 md:p-6 flex-1 space-y-6">
+
+      <!-- ==================== ABA 1: CHAMADOS ==================== -->
+      <section id="conteudo-chamados" class="space-y-4">
+        
+        <!-- Barra de Filtros e Busca -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-md">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            
+            <!-- Filtro de Status -->
+            <div class="flex flex-wrap gap-1.5" id="filtros-status-botoes">
+              <button onclick="filtrarChamadosPorStatus('TODOS')" data-status="TODOS" 
+                      class="filtro-st-btn px-3 py-1.5 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-sm">
+                Todos
+              </button>
+              <button onclick="filtrarChamadosPorStatus('PENDENTE')" data-status="PENDENTE" 
+                      class="filtro-st-btn px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium text-xs">
+                🟡 Pendentes
+              </button>
+              <button onclick="filtrarChamadosPorStatus('AGENDADO')" data-status="AGENDADO" 
+                      class="filtro-st-btn px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium text-xs">
+                📅 Agendados / 🚚 72h
+              </button>
+              <button onclick="filtrarChamadosPorStatus('CONCLUIDO')" data-status="CONCLUIDO" 
+                      class="filtro-st-btn px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium text-xs">
+                ✓ Concluídos
+              </button>
+              <button onclick="filtrarChamadosPorStatus('CANCELADO')" data-status="CANCELADO" 
+                      class="filtro-st-btn px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium text-xs">
+                ✕ Cancelados
+              </button>
+            </div>
+
+            <!-- Totalizador -->
+            <div class="text-xs font-semibold text-slate-400">
+              Exibindo <span id="lbl-total-chamados-filtrados" class="text-white font-bold">0</span> chamados
+            </div>
+          </div>
+
+          <!-- Linha de Busca e Secretaria -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+            <div class="md:col-span-2 relative">
+              <input type="text" id="filtro-busca-texto" oninput="aoDigitarBuscaChamados()" 
+                     placeholder="Buscar por protocolo, nome do cidadão, CPF, rua ou bairro..." 
+                     class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl pl-9 pr-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500">
+              <span class="absolute left-3 top-2.5 text-xs text-slate-500">🔍</span>
+            </div>
+
+            <div>
+              <select id="filtro-select-secretaria" onchange="aoMudarFiltroSecretaria(this.value)" 
+                      class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2 text-xs outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+                <option value="TODAS">Todas as Secretarias</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabela / Lista de Chamados -->
+        <div id="lista-chamados-container" class="space-y-3">
+          <div class="text-center py-12 text-slate-500 text-xs">
+            <span class="animate-spin inline-block mr-1">⏳</span> Carregando chamados do município...
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== ABA 2: INDICADORES ==================== -->
+      <section id="conteudo-indicadores" class="space-y-6 hidden">
+        <!-- Cards KPI -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-1 shadow-sm">
+            <p class="text-[10px] text-slate-400 uppercase font-black tracking-wider">Total de Chamados</p>
+            <h3 id="kpi-total" class="text-2xl font-black text-white">0</h3>
+            <p class="text-[10px] text-blue-400 font-semibold">Cadastrados no município</p>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-1 shadow-sm">
+            <p class="text-[10px] text-amber-400 uppercase font-black tracking-wider">Pendentes</p>
+            <h3 id="kpi-pendentes" class="text-2xl font-black text-amber-400">0</h3>
+            <p class="text-[10px] text-slate-400">Aguardando atendimento</p>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-1 shadow-sm">
+            <p class="text-[10px] text-blue-400 uppercase font-black tracking-wider">Agendados / Campo</p>
+            <h3 id="kpi-agendados" class="text-2xl font-black text-blue-400">0</h3>
+            <p class="text-[10px] text-slate-400">Equipe despachada / marcada</p>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-1 shadow-sm">
+            <p class="text-[10px] text-emerald-400 uppercase font-black tracking-wider">Concluídos</p>
+            <h3 id="kpi-concluidos" class="text-2xl font-black text-emerald-400">0</h3>
+            <p class="text-[10px] text-emerald-500 font-semibold">Atendimentos finalizados</p>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-1 shadow-sm">
+            <p class="text-[10px] text-indigo-400 uppercase font-black tracking-wider">Prazo Zeladoria (72h)</p>
+            <h3 id="kpi-taxa-72h" class="text-2xl font-black text-indigo-400">100%</h3>
+            <p class="text-[10px] text-slate-400">Cumprimento do prazo</p>
+          </div>
+        </div>
+
+        <!-- Gráficos -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-3 shadow-sm">
+            <h4 class="text-xs font-black uppercase text-slate-300">Chamados por Secretaria</h4>
+            <div class="h-64">
+              <canvas id="grafico-secretarias"></canvas>
+            </div>
+          </div>
+
+          <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-3 shadow-sm">
+            <h4 class="text-xs font-black uppercase text-slate-300">Chamados por Status Geral</h4>
+            <div class="h-64 flex items-center justify-center">
+              <canvas id="grafico-status"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== ABA 3: SECRETARIAS E SERVIÇOS ==================== -->
+      <section id="conteudo-servicos" class="space-y-6 hidden">
+        
+        <!-- Secretarias -->
+        <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-4 shadow-sm">
+          <div class="flex justify-between items-center">
+            <div>
+              <h3 class="text-sm font-black text-white">Secretarias Municipais</h3>
+              <p class="text-xs text-slate-400">Departamentos e órgãos responsáveis pelos chamados de <span class="cidade-nome-txt text-white font-bold"></span>.</p>
+            </div>
+            <button onclick="abrirModalNovaSecretaria()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition shadow flex items-center gap-1.5">
+              <span>+</span> <span>Nova Secretaria</span>
+            </button>
+          </div>
+
+          <div id="lista-secretarias-crud" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+        </div>
+
+        <!-- Serviços -->
+        <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-4 shadow-sm">
+          <div class="flex justify-between items-center">
+            <div>
+              <h3 class="text-sm font-black text-white">Catálogo de Serviços ao Cidadão</h3>
+              <p class="text-xs text-slate-400">Serviços públicos disponíveis no app para agendamento e zeladoria.</p>
+            </div>
+            <button onclick="abrirModalNovoServico()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition shadow flex items-center gap-1.5">
+              <span>+</span> <span>Novo Serviço</span>
+            </button>
+          </div>
+
+          <div id="lista-servicos-crud" class="divide-y divide-slate-800"></div>
+        </div>
+      </section>
+
+      <!-- ==================== ABA 4: EQUIPE (ADMIN) ==================== -->
+      <section id="conteudo-equipe" class="space-y-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-4 shadow-sm">
+          <div class="flex justify-between items-center">
+            <div>
+              <h3 class="text-sm font-black text-white">Equipe de Servidores Autorizados</h3>
+              <p class="text-xs text-slate-400">Usuários com permissão para despachar e responder chamados.</p>
+            </div>
+            <button onclick="abrirModalNovoUsuario()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition shadow flex items-center gap-1.5">
+              <span>+</span> <span>Adicionar Servidor</span>
+            </button>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-950 text-slate-400 border-b border-slate-800 uppercase text-[10px]">
+                <tr>
+                  <th class="p-3">Nome / E-mail</th>
+                  <th class="p-3">Papel</th>
+                  <th class="p-3">Secretaria Designada</th>
+                  <th class="p-3">Status</th>
+                  <th class="p-3 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tabela-equipe-tbody" class="divide-y divide-slate-800/60"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ==================== MODAL: DETALHES DO CHAMADO ==================== -->
+  <div id="modal-detalhes-chamado" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-2xl w-full p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-start border-b border-slate-800 pb-3">
+        <div>
+          <div class="flex items-center gap-2">
+            <span id="det-modal-protocolo" class="text-xs font-black bg-blue-900/60 text-blue-300 border border-blue-700/60 px-2 py-0.5 rounded">#0000</span>
+            <span id="det-modal-codigo-pub" class="text-xs font-mono text-slate-400">ES0000</span>
+            <span id="det-modal-status-badge"></span>
+          </div>
+          <h3 id="det-modal-servico-nome" class="text-base font-bold text-white mt-1">Serviço Municipal</h3>
+        </div>
+        <button onclick="fecharModalDetalhes()" class="text-slate-400 hover:text-white font-bold text-base">✕</button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
+          <p class="text-slate-400 font-semibold">Munícipe Solicitante:</p>
+          <p id="det-modal-cid-nome" class="font-bold text-white text-sm"></p>
+          <p id="det-modal-cid-cpf" class="text-slate-400"></p>
+          <p id="det-modal-cid-tel" class="text-blue-400 font-bold"></p>
+          <p id="det-modal-sus" class="text-slate-400 hidden"></p>
+        </div>
+
+        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
+          <p class="text-slate-400 font-semibold">Setor & Prazos:</p>
+          <p id="det-modal-setor" class="font-bold text-white"></p>
+          <p id="det-modal-data-abertura" class="text-slate-400"></p>
+          <p id="det-modal-prazo" class="text-amber-400 font-bold"></p>
+          <p id="det-modal-unidade" class="text-slate-400 hidden"></p>
+        </div>
+      </div>
+
+      <!-- Localização & Mapa Leaflet -->
+      <div id="det-modal-bloco-endereco" class="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-2.5 hidden">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+            <span>📍</span> <span>Endereço / Local da Ocorrência:</span>
+          </span>
+          <span id="det-modal-coords-lbl" class="text-[10px] font-mono text-slate-400"></span>
+        </div>
+        <p id="det-modal-endereco-txt" class="text-xs text-white font-medium"></p>
+        
+        <div id="modal-mapa-chamado"></div>
+
+        <div id="det-modal-links-rota" class="flex flex-wrap gap-2 pt-1"></div>
+      </div>
+
+      <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1 text-xs">
+        <p class="text-slate-400 font-semibold">Descrição do Cidadão:</p>
+        <p id="det-modal-descricao" class="text-slate-200 italic"></p>
+      </div>
+
+      <div id="det-modal-bloco-resposta" class="bg-blue-950/40 border border-blue-800/60 p-3 rounded-xl space-y-1 text-xs hidden">
+        <p class="text-blue-300 font-bold">Situação Oficial Registrada:</p>
+        <p id="det-modal-resposta" class="text-blue-100"></p>
+      </div>
+
+      <!-- Ações do Modal -->
+      <div id="det-modal-acoes-footer" class="pt-2 flex flex-wrap gap-2 justify-end border-t border-slate-800"></div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: AGENDAR DATA / UBS ==================== -->
+  <div id="modal-agendar" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 class="text-sm font-black text-white flex items-center gap-2">
+          <span>📅</span> <span>Confirmar Agendamento</span>
+        </h3>
+        <button onclick="fecharModalAgendar()" class="text-slate-400 hover:text-white font-bold">✕</button>
+      </div>
+
+      <form onsubmit="executarConfirmacaoAgendamento(event)" class="space-y-3">
+        <input type="hidden" id="agenda-sol-id">
+        <input type="hidden" id="agenda-cid-fone">
+        <input type="hidden" id="agenda-cid-nome">
+        <input type="hidden" id="agenda-serv-nome">
+        <input type="hidden" id="agenda-protocolo-txt">
+
+        <!-- Seleção de Data e Horário com Calendário Interativo -->
+        <div class="space-y-2">
+          <label class="block text-xs font-bold text-slate-300">Data e Horário Oficial *</label>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <span class="block text-[10px] text-slate-400 font-medium mb-1">Escolher Dia:</span>
+              <input type="date" id="agenda-data" required 
+                     style="color-scheme: dark;"
+                     onclick="this.showPicker && this.showPicker()"
+                     class="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+            </div>
+            <div>
+              <span class="block text-[10px] text-slate-400 font-medium mb-1">Escolher Horário:</span>
+              <input type="time" id="agenda-hora" required 
+                     style="color-scheme: dark;"
+                     onclick="this.showPicker && this.showPicker()"
+                     class="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+            </div>
+          </div>
+          
+          <!-- Atalhos rápidos de data -->
+          <div class="flex flex-wrap gap-1.5 pt-1">
+            <span class="text-[10px] text-slate-400 self-center mr-1">Atalhos:</span>
+            <button type="button" onclick="definirDataAgendamento(1, '08:00')" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px] border border-slate-700">Amanhã 08h</button>
+            <button type="button" onclick="definirDataAgendamento(1, '09:30')" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px] border border-slate-700">Amanhã 09:30</button>
+            <button type="button" onclick="definirDataAgendamento(1, '14:00')" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px] border border-slate-700">Amanhã 14h</button>
+            <button type="button" onclick="definirDataAgendamento(2, '09:00')" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px] border border-slate-700">Em 2 dias</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">Local / Unidade de Atendimento *</label>
+          <input type="text" id="agenda-local" required placeholder="Ex: UBS Central / Posto de Saúde" 
+                 class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">Orientações ao Munícipe</label>
+          <textarea id="agenda-orientacoes" rows="3" placeholder="Documentos necessários, jejum, etc." 
+                    class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+        </div>
+
+        <button type="submit" id="btn-confirmar-agenda-submit" 
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-xs shadow-lg transition">
+          Confirmar e Salvar Agendamento ➔
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: SUCESSO DE AGENDAMENTO (COM BOTÃO DE DISPARO WHATSAPP) ==================== -->
+  <div id="modal-sucesso-agendamento" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl text-center">
+      <div class="w-14 h-14 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded-2xl flex items-center justify-center text-2xl mx-auto shadow-inner">
+        ✓
+      </div>
+      
+      <div>
+        <h3 class="text-base font-black text-white">Agendamento Confirmado!</h3>
+        <p class="text-xs text-slate-400 mt-1">O atendimento foi registrado no sistema como <strong>AGENDADO</strong>.</p>
+      </div>
+
+      <!-- Resumo do Agendamento -->
+      <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-left text-xs space-y-2">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+          <span class="text-slate-400 font-semibold">Protocolo:</span>
+          <span id="sucesso-agenda-proto" class="font-black text-blue-400 font-mono text-sm">#0000</span>
+        </div>
+        <div>
+          <span class="text-slate-400 font-semibold">Munícipe:</span>
+          <p id="sucesso-agenda-nome" class="font-bold text-white"></p>
+          <p id="sucesso-agenda-fone" class="text-slate-400 text-[11px]"></p>
+        </div>
+        <div>
+          <span class="text-slate-400 font-semibold">Serviço:</span>
+          <p id="sucesso-agenda-servico" class="font-bold text-slate-200"></p>
+        </div>
+        <div>
+          <span class="text-slate-400 font-semibold">Data & Horário:</span>
+          <p id="sucesso-agenda-datahora" class="font-bold text-amber-300"></p>
+        </div>
+        <div>
+          <span class="text-slate-400 font-semibold">Local Designado:</span>
+          <p id="sucesso-agenda-local" class="font-medium text-slate-300"></p>
+        </div>
+      </div>
+
+      <!-- Botões de Ação -->
+      <div class="space-y-2 pt-2">
+        <a id="btn-sucesso-whatsapp" href="#" target="_blank" onclick="fecharModalSucessoAgendamento()" 
+           class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-2xl text-xs shadow-lg transition flex items-center justify-center gap-2">
+          <span class="text-base">💬</span>
+          <span>Enviar Confirmação no WhatsApp do Cidadão</span>
+        </a>
+
+        <button type="button" onclick="fecharModalSucessoAgendamento()" 
+                class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 rounded-2xl text-xs transition">
+          Concluir e Voltar aos Chamados
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: CONCLUIR ATENDIMENTO ==================== -->
+  <div id="modal-concluir" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 class="text-sm font-black text-white flex items-center gap-2">
+          <span>✓</span> <span>Concluir Ordem de Serviço</span>
+        </h3>
+        <button onclick="fecharModalConcluir()" class="text-slate-400 hover:text-white font-bold">✕</button>
+      </div>
+
+      <form onsubmit="executarConclusaoChamado(event)" class="space-y-3">
+        <input type="hidden" id="concluir-sol-id">
+        <input type="hidden" id="concluir-cid-fone">
+        <input type="hidden" id="concluir-cid-nome">
+        <input type="hidden" id="concluir-protocolo-txt">
+        <input type="hidden" id="concluir-serv-nome">
+
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">Observações do Atendimento Finalizado *</label>
+          <textarea id="concluir-obs" required rows="3" placeholder="Ex: Lâmpada de LED 100W substituída no poste nº 12. Local normalizado." 
+                    class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+        </div>
+
+        <button type="submit" id="btn-concluir-submit" 
+                class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs shadow transition">
+          Salvar Conclusão & Gerar Mensagem WhatsApp ➔
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: CANCELAR CHAMADO ==================== -->
+  <div id="modal-cancelar" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 class="text-sm font-black text-rose-400 flex items-center gap-2">
+          <span>✕</span> <span>Cancelar Chamado</span>
+        </h3>
+        <button onclick="fecharModalCancelar()" class="text-slate-400 hover:text-white font-bold">✕</button>
+      </div>
+
+      <form onsubmit="executarCancelamentoChamado(event)" class="space-y-3">
+        <input type="hidden" id="cancelar-sol-id">
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">Motivo / Justificativa Obrigatória *</label>
+          <textarea id="cancelar-motivo" required rows="3" placeholder="Informe o motivo formal do cancelamento para registro..." 
+                    class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-rose-500"></textarea>
+        </div>
+
+        <button type="submit" id="btn-cancelar-submit" 
+                class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 rounded-xl text-xs shadow transition">
+          Confirmar Cancelamento Definitivo
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: NOVA SECRETARIA ==================== -->
+  <div id="modal-nova-secretaria" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 class="text-sm font-black text-white">Adicionar Secretaria</h3>
+        <button onclick="fecharModalNovaSecretaria()" class="text-slate-400 hover:text-white font-bold">✕</button>
+      </div>
+
+      <form onsubmit="salvarNovaSecretaria(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">Nome Completo do Órgão *</label>
+          <input type="text" id="sec-nome-input" required placeholder="Ex: Secretaria de Meio Ambiente e Turismo" 
+                 class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Sigla *</label>
+            <input type="text" id="sec-sigla-input" required placeholder="Ex: SEMMA" maxlength="10" 
+                   class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 uppercase">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Ícone</label>
+            <input type="text" id="sec-icone-input" value="🏛️" 
+                   class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs shadow transition">
+          Salvar Secretaria
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: NOVO SERVIÇO ==================== -->
+  <div id="modal-novo-servico" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 class="text-sm font-black text-white">Criar Novo Serviço Municipal</h3>
+        <button onclick="fecharModalNovoServico()" class="text-slate-400 hover:text-white font-bold">✕</button>
+      </div>
+
+      <form onsubmit="salvarNovoServicoAdmin(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">Nome do Serviço *</label>
+          <input type="text" id="ns-nome" required placeholder="Ex: Poda de Árvores em Vias Públicas" 
+                 class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Secretaria Responsável *</label>
+            <select id="ns-secretaria" required 
+                    class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Ícone</label>
+            <input type="text" id="ns-icone" value="🌳" 
+                   class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Tipo de Fluxo *</label>
+            <select id="ns-fluxo" onchange="aoMudarFluxoNovoServ(this.value)" 
+                    class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="AGENDAMENTO">Agendamento Presencial</option>
+              <option value="ZELADORIA">Zeladoria / Atendimento Campo (72h)</option>
+              <option value="DOCUMENTACAO">Documentação / Solicitação</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Prazo Estimado (Dias)</label>
+            <input type="number" id="ns-prazo" value="3" min="1" 
+                   class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+
+        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2 text-xs">
+          <p class="font-bold text-slate-300">Requisitos do Formulário:</p>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="ns-exige-endereco" class="rounded text-blue-600">
+            <span>Exige Endereço e Localização GPS</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="ns-exige-ubs" class="rounded text-blue-600">
+            <span>Exige Seleção de Unidade de Saúde (UBS)</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer text-amber-300">
+            <input type="checkbox" id="ns-agendamento-72h" class="rounded text-amber-500">
+            <span>Agendamento Direto em Campo (Prazo 72h sem espera)</span>
+          </label>
+        </div>
+
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs shadow transition">
+          Salvar e Publicar Serviço
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: NOVO SERVIDOR (EQUIPE) ==================== -->
+  <div id="modal-novo-usuario" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 class="text-sm font-black text-white">Cadastrar Servidor na Prefeitura</h3>
+        <button onclick="fecharModalNovoUsuario()" class="text-slate-400 hover:text-white font-bold">✕</button>
+      </div>
+
+      <form onsubmit="salvarNovoUsuario(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">Nome Completo *</label>
+          <input type="text" id="usr-nome" required placeholder="Nome do servidor" 
+                 class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">E-mail de Acesso *</label>
+          <input type="email" id="usr-email" required placeholder="servidor@prefeitura.gov.br" 
+                 class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Papel de Acesso *</label>
+            <select id="usr-papel" onchange="aoMudarPapelNovoUsuario(this.value)" 
+                    class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="SERVIDOR">SERVIDOR (Setorial)</option>
+              <option value="ADMIN">ADMIN (Gabinete Geral)</option>
+            </select>
+          </div>
+
+          <div id="bloco-usr-secretaria">
+            <label class="block text-xs font-bold text-slate-300 mb-1">Secretaria Designada</label>
+            <select id="usr-secretaria" 
+                    class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"></select>
+          </div>
+        </div>
+
+        <div class="bg-amber-500/10 border border-amber-500/30 p-2.5 rounded-xl text-[11px] text-amber-300">
+          ℹ️ O usuário poderá se autenticar usando este e-mail no painel com sua conta do Supabase Auth.
+        </div>
+
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs shadow transition">
+          Salvar Servidor
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== LÓGICA JAVASCRIPT ==================== -->
+  <script>
+    const SUPABASE_URL = 'https://mnhtavsafskhiodywfat.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1uaHRhdnNhZnNraGlvZHl3ZmF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEwMDQxNDEsImV4cCI6MjEwNjU4MDE0MX0.PFmD7YjlIJyhcqXhMTt4qYngV0d8pwZrgdfJMgZUCq8';
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // Estado Global da Aplicação
+    let sessaoAtual = null;
+    let usuarioAtual = null; // registro da tabela usuarios_prefeitura
+    let prefeituraAtual = null;
+    let secretarias = [];
+    let servicos = [];
+    let chamados = [];
+    let filtroStatusAtual = 'TODOS';
+    let filtroSecretariaAtual = 'TODAS';
+    let filtroTextoAtual = '';
+    let canalRealtime = null;
+    let mapaDetalhesLeaflet = null;
+    let marcadorMapaDetalhes = null;
+    let chartSecretarias = null;
+    let chartStatus = null;
+
+    // 1. INICIALIZAÇÃO E SESSÃO SUPABASE AUTH
+    window.onload = async () => {
+      const { data: { session } } = await sb.auth.getSession();
+      if (session) {
+        await verificarAcessoServidor(session);
+      } else {
+        exibirTelaLogin();
+      }
+
+      sb.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          await verificarAcessoServidor(session);
+        } else if (event === 'SIGNED_OUT') {
+          exibirTelaLogin();
+        }
+      });
+    };
+
+    function exibirTelaLogin() {
+      document.getElementById('tela-login').classList.remove('hidden');
+      document.getElementById('painel-principal').classList.add('hidden');
+      if (canalRealtime) sb.removeChannel(canalRealtime);
+    }
+
+    async function realizarLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-senha').value;
+      const erroBox = document.getElementById('login-erro');
+      const btn = document.getElementById('btn-login-submit');
+
+      erroBox.classList.add('hidden');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="animate-spin">⏳</span> Autenticando...';
+
+      try {
+        const { data, error } = await sb.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        await verificarAcessoServidor(data.session);
+      } catch (err) {
+        console.error('Erro no login:', err);
+        erroBox.innerText = err.message === 'Invalid login credentials' 
+          ? 'E-mail ou senha incorretos. Verifique suas credenciais.' 
+          : 'Erro ao autenticar: ' + err.message;
+        erroBox.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>Entrar no Painel</span> <span>➔</span>';
+      }
+    }
+
+    async function verificarAcessoServidor(session) {
+      sessaoAtual = session;
+      const userId = session.user.id;
+
+      try {
+        const { data: usr, error } = await sb
+          .from('usuarios_prefeitura')
+          .select('*, prefeituras(*), secretarias(*)')
+          .eq('user_id', userId)
+          .eq('ativo', true)
+          .single();
+
+        if (error || !usr || !usr.prefeituras) {
+          // Não autorizado ou desativado
+          await sb.auth.signOut();
+          const erroBox = document.getElementById('login-erro');
+          erroBox.innerText = 'Acesso restrito a servidores autorizados. Solicite permissão ao administrador da prefeitura.';
+          erroBox.classList.remove('hidden');
+          exibirTelaLogin();
+          return;
+        }
+
+        usuarioAtual = usr;
+        prefeituraAtual = usr.prefeituras;
+        configurarInterfaceLogado();
+        await carregarTudo();
+        iniciarRealtime();
+      } catch (err) {
+        console.error('Erro na validação do servidor:', err);
+        await sb.auth.signOut();
+        exibirTelaLogin();
+      }
+    }
+
+    async function realizarLogout() {
+      if (canalRealtime) sb.removeChannel(canalRealtime);
+      await sb.auth.signOut();
+      usuarioAtual = null;
+      prefeituraAtual = null;
+      chamados = [];
+      exibirTelaLogin();
+    }
+
+    // 2. CONFIGURAÇÃO DA INTERFACE DO SERVIDOR
+    function configurarInterfaceLogado() {
+      document.getElementById('tela-login').classList.add('hidden');
+      document.getElementById('painel-principal').classList.remove('hidden');
+
+      document.querySelectorAll('.cidade-nome-txt').forEach(el => el.innerText = prefeituraAtual.cidade);
+      document.getElementById('admin-pref-nome').innerText = prefeituraAtual.nome || `Prefeitura de ${prefeituraAtual.cidade}`;
+      document.getElementById('admin-brasao-img').src = prefeituraAtual.brasao_url || 'https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=80';
+      document.getElementById('admin-user-nome').innerText = usuarioAtual.nome || sessaoAtual.user.email;
+
+      const badgePapel = document.getElementById('admin-user-badge-papel');
+      badgePapel.innerText = usuarioAtual.papel;
+
+      const lblSetor = document.getElementById('admin-usuario-setor');
+      if (usuarioAtual.papel === 'ADMIN') {
+        lblSetor.innerText = '🏛️ Gabinete Geral (Visão Total)';
+        document.getElementById('aba-btn-equipe').classList.remove('hidden');
+      } else {
+        const secNome = usuarioAtual.secretarias?.sigla || 'Setorial';
+        lblSetor.innerText = `🏢 ${usuarioAtual.secretarias?.nome || secNome}`;
+        document.getElementById('aba-btn-equipe').classList.add('hidden');
+        // Fixa a secretaria no filtro
+        filtroSecretariaAtual = usuarioAtual.secretaria_id;
+        document.getElementById('filtro-select-secretaria').disabled = true;
+      }
+    }
+
+    // 3. CARREGAMENTO GERAL DE DADOS
+    async function carregarTudo() {
+      await Promise.all([
+        carregarSecretarias(),
+        carregarServicos(),
+        carregarChamados()
+      ]);
+      renderizarChamados();
+      atualizarIndicadores();
+    }
+
+    async function carregarSecretarias() {
+      const { data, error } = await sb
+        .from('secretarias')
+        .select('*')
+        .eq('prefeitura_id', prefeituraAtual.id)
+        .order('nome');
+
+      if (!error && data) {
+        secretarias = data;
+        preencherSelectsSecretarias();
+        renderizarSecretariasCrud();
+      }
+    }
+
+    function preencherSelectsSecretarias() {
+      const selFiltro = document.getElementById('filtro-select-secretaria');
+      const selNovoServ = document.getElementById('ns-secretaria');
+      const selNovoUsr = document.getElementById('usr-secretaria');
+
+      let optionsFiltro = '<option value="TODAS">Todas as Secretarias</option>';
+      let optionsCrud = '';
+
+      secretarias.forEach(s => {
+        optionsFiltro += `<option value="${s.id}">${s.icone || '🏢'} ${s.nome} (${s.sigla})</option>`;
+        optionsCrud += `<option value="${s.id}">${s.icone || '🏢'} ${s.nome} (${s.sigla})</option>`;
+      });
+
+      if (selFiltro) {
+        selFiltro.innerHTML = optionsFiltro;
+        if (usuarioAtual.papel === 'SERVIDOR' && usuarioAtual.secretaria_id) {
+          selFiltro.value = usuarioAtual.secretaria_id;
+        }
+      }
+      if (selNovoServ) selNovoServ.innerHTML = optionsCrud;
+      if (selNovoUsr) selNovoUsr.innerHTML = optionsCrud;
+    }
+
+    async function carregarServicos() {
+      const { data, error } = await sb
+        .from('catalogo_servicos')
+        .select('*, secretarias(nome, sigla, icone)')
+        .eq('prefeitura_id', prefeituraAtual.id)
+        .order('nome');
+
+      if (!error && data) {
+        servicos = data;
+        renderizarServicosCrud();
+      }
+    }
+
+    async function carregarChamados() {
+      let query = sb
+        .from('solicitacoes')
+        .select('*, secretarias(nome, sigla, icone)')
+        .eq('prefeitura_id', prefeituraAtual.id)
+        .order('created_at', { ascending: false });
+
+      if (usuarioAtual.papel === 'SERVIDOR' && usuarioAtual.secretaria_id) {
+        query = query.or(`secretaria_id.eq.${usuarioAtual.secretaria_id},secretaria_id.is.null`);
+      }
+
+      const { data, error } = await query;
+      if (!error && data) {
+        chamados = data;
+      }
+    }
+
+    // 4. TEMPO REAL (SUPABASE REALTIME)
+    function iniciarRealtime() {
+      if (canalRealtime) sb.removeChannel(canalRealtime);
+
+      canalRealtime = sb.channel('painel-chamados-realtime')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'solicitacoes', filter: `prefeitura_id=eq.${prefeituraAtual.id}` },
+          async (payload) => {
+            console.log('⚡ Atualização Realtime recebida:', payload.eventType);
+            await carregarChamados();
+            renderizarChamados();
+            atualizarIndicadores();
+            if (payload.eventType === 'INSERT') {
+              tocarAlertaSonoro();
+            }
+          }
+        )
+        .subscribe();
+    }
+
+    function tocarAlertaSonoro() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1); // A5
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.35);
+      } catch (e) {
+        console.warn('Audio não suportado:', e);
+      }
+    }
+
+    // 5. RENDERIZAÇÃO DA ABA DE CHAMADOS
+    function filtrarChamadosPorStatus(st) {
+      filtroStatusAtual = st;
+      document.querySelectorAll('.filtro-st-btn').forEach(btn => {
+        if (btn.getAttribute('data-status') === st) {
+          btn.className = 'filtro-st-btn px-3 py-1.5 rounded-xl bg-blue-600 text-white font-bold text-xs shadow-sm';
+        } else {
+          btn.className = 'filtro-st-btn px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 font-medium text-xs';
+        }
+      });
+      renderizarChamados();
+    }
+
+    function aoDigitarBuscaChamados() {
+      filtroTextoAtual = document.getElementById('filtro-busca-texto').value.trim().toLowerCase();
+      renderizarChamados();
+    }
+
+    function aoMudarFiltroSecretaria(secId) {
+      filtroSecretariaAtual = secId;
+      renderizarChamados();
+    }
+
+    function renderizarChamados() {
+      const container = document.getElementById('lista-chamados-container');
+      const totalPendentes = chamados.filter(c => c.status === 'PENDENTE').length;
+      
+      const badgePend = document.getElementById('badge-cont-chamados-pendentes');
+      if (totalPendentes > 0) {
+        badgePend.innerText = totalPendentes;
+        badgePend.classList.remove('hidden');
+      } else {
+        badgePend.classList.add('hidden');
+      }
+
+      const filtrados = chamados.filter(c => {
+        // Filtro Status
+        const matchStatus = (filtroStatusAtual === 'TODOS') || (c.status === filtroStatusAtual);
+        // Filtro Secretaria
+        const matchSec = (filtroSecretariaAtual === 'TODAS') || (c.secretaria_id === filtroSecretariaAtual);
+        // Filtro Texto
+        let matchTexto = true;
+        if (filtroTextoAtual) {
+          const tudo = `${c.protocolo} ${c.protocolo_publico || ''} ${c.cidadao_nome} ${c.cidadao_cpf} ${c.endereco_rua || ''} ${c.endereco_bairro || ''} ${c.servico_nome}`.toLowerCase();
+          matchTexto = tudo.includes(filtroTextoAtual);
+        }
+        return matchStatus && matchSec && matchTexto;
+      });
+
+      document.getElementById('lbl-total-chamados-filtrados').innerText = filtrados.length;
+
+      if (filtrados.length === 0) {
+        container.innerHTML = `
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-12 text-center text-slate-500 text-xs">
+            Nenhum chamado localizado com os filtros selecionados.
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filtrados.map(sol => {
+        const is72h = sol.tipo_atendimento === 'CAMPO_72H';
+        const dataAbertura = new Date(sol.created_at);
+        const dataFormatada = dataAbertura.toLocaleDateString('pt-BR') + ' às ' + dataAbertura.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        const foneLimpo = (sol.cidadao_telefone || '').replace(/\D/g, '');
+        const setorNome = sol.setor_responsavel || sol.secretarias?.nome || 'Gabinete';
+        const setorSigla = sol.setor_sigla || sol.secretarias?.sigla || 'SEM';
+
+        // Badge de Status
+        let badgeClass = 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+        let badgeTxt = '🟡 PENDENTE';
+        if (sol.status === 'CONCLUIDO') {
+          badgeClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+          badgeTxt = '✓ CONCLUÍDO';
+        } else if (sol.status === 'CANCELADO') {
+          badgeClass = 'bg-rose-500/10 text-rose-400 border-rose-500/30';
+          badgeTxt = '✕ CANCELADO';
+        } else if (is72h) {
+          badgeClass = 'bg-emerald-500/10 text-emerald-300 border-emerald-500/40';
+          badgeTxt = '🚚 AGENDADO DIRETO (72H)';
+        } else if (sol.status === 'AGENDADO') {
+          badgeClass = 'bg-blue-500/10 text-blue-300 border-blue-500/30';
+          badgeTxt = '📅 AGENDADO';
+        }
+
+        // Contagem regressiva de 72h para zeladoria
+        let countdownHtml = '';
+        if (is72h && sol.status !== 'CONCLUIDO' && sol.status !== 'CANCELADO') {
+          const criadoMs = new Date(sol.created_at).getTime();
+          const limiteMs = criadoMs + (72 * 60 * 60 * 1000);
+          const agoraMs = Date.now();
+          const horasRestantes = Math.round((limiteMs - agoraMs) / (60 * 60 * 1000));
+          if (horasRestantes > 0) {
+            countdownHtml = `<span class="bg-amber-950/80 border border-amber-600/40 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full">⏱️ ${horasRestantes}h restantes</span>`;
+          } else {
+            countdownHtml = `<span class="bg-rose-950/80 border border-rose-600/40 text-rose-300 text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">⚠️ Prazo de 72h expirado</span>`;
+          }
+        }
+
+        return `
+          <div class="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl p-4 transition shadow-sm space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="text-xs font-black bg-slate-800 text-blue-400 px-2.5 py-1 rounded-lg border border-slate-700">#${sol.protocolo}</span>
+                <span class="text-xs font-bold text-white flex items-center gap-1">
+                  <span>${sol.servico_icone || '📌'}</span> <span>${sol.servico_nome}</span>
+                </span>
+                <span class="text-[10px] font-bold bg-slate-800 text-slate-300 px-2 py-0.5 rounded uppercase border border-slate-700">
+                  🏢 ${setorSigla}
+                </span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${badgeClass}">
+                  ${badgeTxt}
+                </span>
+                ${countdownHtml}
+              </div>
+
+              <span class="text-[11px] text-slate-500 font-medium">${dataFormatada}</span>
+            </div>
+
+            <!-- Dados do Cidadão e Localização -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+              <div class="space-y-0.5">
+                <p class="font-bold text-slate-200">${sol.cidadao_nome}</p>
+                <p class="text-slate-400">📱 WhatsApp: <span class="text-blue-400 font-semibold">${sol.cidadao_telefone}</span> | CPF: ${sol.cidadao_cpf}</p>
+                ${sol.unidade_preferencia ? `<p class="text-slate-400">🏥 Unidade: <strong>${sol.unidade_preferencia}</strong> (${sol.turno_preferencia || 'Geral'})</p>` : ''}
+              </div>
+
+              <div class="space-y-0.5">
+                ${sol.endereco_gps ? `
+                  <p class="text-amber-300 font-medium">📍 ${sol.endereco_gps}</p>
+                ` : `<p class="text-slate-500 italic">Endereço presencial / sede</p>`}
+                ${sol.resposta_prefeitura ? `
+                  <p class="text-blue-300 font-medium line-clamp-1">💬 Situação: ${sol.resposta_prefeitura}</p>
+                ` : ''}
+              </div>
+            </div>
+
+            <!-- Descrição resumida -->
+            <p class="text-xs text-slate-300 bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 italic">
+              "${sol.descricao}"
+            </p>
+
+            <!-- Ações do Servidor -->
+            <div class="pt-2 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
+              <button onclick="abrirModalDetalhes('${sol.id}')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold px-3 py-1.5 rounded-xl transition border border-slate-700 flex items-center gap-1">
+                <span>🔍</span> <span>Ver Detalhes & Mapa</span>
+              </button>
+
+              <div class="flex flex-wrap gap-1.5">
+                ${is72h ? `
+                  <a href="${gerarLinkDespachoEquipe(sol)}" target="_blank" 
+                     class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition shadow flex items-center gap-1">
+                    <span>📲</span> <span>Despachar Equipe (WhatsApp)</span>
+                  </a>
+                  <a href="${gerarLinkMunicipeACaminho(sol)}" target="_blank" 
+                     class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition shadow flex items-center gap-1">
+                    <span>💬</span> <span>Avisar Munícipe</span>
+                  </a>
+                ` : sol.status === 'PENDENTE' ? `
+                  <button onclick="abrirModalAgendar('${sol.id}')" 
+                          class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition shadow flex items-center gap-1">
+                    <span>📅</span> <span>Confirmar Agendamento</span>
+                  </button>
+                ` : sol.status === 'AGENDADO' ? `
+                  <a href="${gerarLinkMunicipeAgendamento(sol)}" target="_blank" 
+                     class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition shadow flex items-center gap-1.5">
+                    <span>💬</span> <span>Enviar WhatsApp de Confirmação</span>
+                  </a>
+                ` : ''}
+
+                ${sol.status !== 'CONCLUIDO' && sol.status !== 'CANCELADO' ? `
+                  <button onclick="abrirModalConcluir('${sol.id}')" 
+                          class="bg-slate-800 hover:bg-emerald-900/40 text-emerald-400 border border-slate-700 hover:border-emerald-600 text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1">
+                    <span>✓</span> <span>Concluir</span>
+                  </button>
+                  <button onclick="abrirModalCancelar('${sol.id}')" 
+                          class="bg-slate-800 hover:bg-rose-900/40 text-rose-400 border border-slate-700 hover:border-rose-600 text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1">
+                    <span>✕</span> <span>Cancelar</span>
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // 6. LINKS WHATSAPP E ROTAS
+    function gerarLinkDespachoEquipe(sol) {
+      const lat = sol.latitude;
+      const lng = sol.longitude;
+      const mapsUrl = sol.google_maps_url || (lat && lng ? `https://www.google.com/maps?q=${lat},${lng}` : '');
+      const rotaUrl = lat && lng ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}` : '';
+
+      const msg = 
+        `🏛️ *PREFEITURA DE ${prefeituraAtual.cidade.toUpperCase()}*\n` +
+        `🏢 *ORDEM DE SERVIÇO - SETOR: ${sol.setor_sigla || 'ZELADORIA'}*\n\n` +
+        `📋 *Protocolo:* #${sol.protocolo} (${sol.protocolo_publico || 'Oficial'})\n` +
+        `🔧 *Serviço:* ${sol.servico_nome}\n` +
+        `👤 *Munícipe:* ${sol.cidadao_nome} (Tel: ${sol.cidadao_telefone})\n` +
+        `📍 *Local:* ${sol.endereco_gps || 'Endereço informado'}\n` +
+        (mapsUrl ? `🗺️ *Google Maps:* ${mapsUrl}\n` : '') +
+        (rotaUrl ? `🚗 *Rota GPS:* ${rotaUrl}\n` : '') +
+        `💬 *Descrição:* "${sol.descricao}"\n` +
+        `⚡ *Prazo Limite:* Em até 72 horas\n\n` +
+        `_Enviado pelo ConectaPrefeitura SaaS Gov._`;
+
+      return `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    }
+
+    function gerarLinkMunicipeACaminho(sol) {
+      const fone = (sol.cidadao_telefone || '').replace(/\D/g, '');
+      const msg = 
+        `🏛️ *PREFEITURA MUNICIPAL DE ${prefeituraAtual.cidade.toUpperCase()}*\n` +
+        `🚚 *EQUIPE TÉCNICA A CAMINHO!*\n\n` +
+        `Olá, *${sol.cidadao_nome}*! A equipe do setor de *${sol.setor_responsavel || 'Zeladoria'}* referente ao seu chamado para *${sol.servico_nome}* (Protocolo *#${sol.protocolo}*) já está a caminho do seu local: *${sol.endereco_gps || 'Endereço informado'}*.`;
+
+      return `https://wa.me/55${fone}?text=${encodeURIComponent(msg)}`;
+    }
+
+    function gerarLinkMunicipeConclusao(sol, obs) {
+      const fone = (sol.cidadao_telefone || '').replace(/\D/g, '');
+      const msg = 
+        `🏛️ *PREFEITURA MUNICIPAL DE ${prefeituraAtual.cidade.toUpperCase()}*\n` +
+        `✅ *ATENDIMENTO CONCLUÍDO!*\n\n` +
+        `Olá, *${sol.cidadao_nome}*! Informamos que seu chamado para *${sol.servico_nome}* (Protocolo *#${sol.protocolo}*) foi concluído com sucesso.\n\n` +
+        `📝 *Observações:* ${obs || 'Serviço executado pela equipe técnica.'}\n\n` +
+        `Obrigado por utilizar os serviços do ConectaPrefeitura!`;
+
+      return `https://wa.me/55${fone}?text=${encodeURIComponent(msg)}`;
+    }
+
+    function gerarLinkMunicipeAgendamento(sol, dataFormatadaCustom, localCustom, orientacoesCustom) {
+      const fone = (sol.cidadao_telefone || '').replace(/\D/g, '');
+      const dt = dataFormatadaCustom || (sol.agendado_para ? new Date(sol.agendado_para).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : 'Data a confirmar');
+      const local = localCustom || sol.unidade_preferencia || 'Sede da Prefeitura / Unidade Designada';
+      const orient = orientacoesCustom || 'Compareça com documento oficial com foto e este número de protocolo.';
+
+      const msg = 
+        `🏛️ *PREFEITURA MUNICIPAL DE ${prefeituraAtual.cidade.toUpperCase()}*\n` +
+        `📅 *CONFIRMAÇÃO OFICIAL DE AGENDAMENTO*\n\n` +
+        `Olá, *${sol.cidadao_nome}*!\n` +
+        `Sua solicitação para *${sol.servico_nome}* (Protocolo *#${sol.protocolo}*) foi *AGENDADA COM SUCESSO*:\n\n` +
+        `📅 *Data e Horário:* ${dt}\n` +
+        `📍 *Local:* ${local}\n` +
+        `💬 *Orientações:* ${orient}\n\n` +
+        `ConectaPrefeitura - Canal Oficial do Cidadão.`;
+
+      return `https://wa.me/55${fone}?text=${encodeURIComponent(msg)}`;
+    }
+
+    // 7. MODAIS DE AÇÃO
+    function abrirModalDetalhes(solId) {
+      const sol = chamados.find(c => c.id === solId);
+      if (!sol) return;
+
+      document.getElementById('det-modal-protocolo').innerText = `#${sol.protocolo}`;
+      document.getElementById('det-modal-codigo-pub').innerText = sol.protocolo_publico || '---';
+      document.getElementById('det-modal-servico-nome').innerText = `${sol.servico_icone || '📌'} ${sol.servico_nome}`;
+      document.getElementById('det-modal-cid-nome').innerText = sol.cidadao_nome;
+      document.getElementById('det-modal-cid-cpf').innerText = `CPF: ${sol.cidadao_cpf}`;
+      document.getElementById('det-modal-cid-tel').innerText = `WhatsApp: ${sol.cidadao_telefone}`;
+      document.getElementById('det-modal-setor').innerText = `${sol.setor_responsavel || 'Setor'} (${sol.setor_sigla || ''})`;
+      
+      const dt = new Date(sol.created_at);
+      document.getElementById('det-modal-data-abertura').innerText = `Aberto em: ${dt.toLocaleDateString('pt-BR')} às ${dt.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}`;
+      document.getElementById('det-modal-descricao').innerText = sol.descricao;
+
+      // Status badge
+      const is72h = sol.tipo_atendimento === 'CAMPO_72H';
+      const badgeContainer = document.getElementById('det-modal-status-badge');
+      badgeContainer.className = `text-[10px] font-bold px-2.5 py-0.5 rounded-full ${sol.status === 'CONCLUIDO' ? 'bg-emerald-500/20 text-emerald-400' : is72h ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'}`;
+      badgeContainer.innerText = sol.status;
+
+      // Bloco de Resposta
+      const blocoResp = document.getElementById('det-modal-bloco-resposta');
+      if (sol.resposta_prefeitura) {
+        document.getElementById('det-modal-resposta').innerText = sol.resposta_prefeitura;
+        blocoResp.classList.remove('hidden');
+      } else {
+        blocoResp.classList.add('hidden');
+      }
+
+      // Bloco de Endereço e Mapa
+      const blocoEnd = document.getElementById('det-modal-bloco-endereco');
+      const lat = sol.latitude;
+      const lng = sol.longitude;
+      if (sol.endereco_gps || (lat && lng)) {
+        blocoEnd.classList.remove('hidden');
+        document.getElementById('det-modal-endereco-txt').innerText = sol.endereco_gps || 'Coordenadas GPS informadas';
+        document.getElementById('det-modal-coords-lbl').innerText = lat && lng ? `Lat: ${Number(lat).toFixed(5)}, Lng: ${Number(lng).toFixed(5)}` : '';
+
+        // Links de rota
+        const linksDiv = document.getElementById('det-modal-links-rota');
+        if (lat && lng) {
+          linksDiv.innerHTML = `
+            <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" 
+               class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3 py-1.5 rounded-xl transition flex items-center gap-1">
+              <span>🗺️</span> <span>Rota no Google Maps</span>
+            </a>
+            <a href="https://waze.com/ul?ll=${lat},${lng}&navigate=yes" target="_blank" 
+               class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3 py-1.5 rounded-xl transition flex items-center gap-1">
+              <span>🧭</span> <span>Abrir no Waze</span>
+            </a>
+          `;
+          setTimeout(() => inicializarMapaDetalhes(lat, lng, sol.cidadao_nome, sol.servico_nome), 200);
+        } else {
+          linksDiv.innerHTML = '';
+        }
+      } else {
+        blocoEnd.classList.add('hidden');
+      }
+
+      document.getElementById('modal-detalhes-chamado').classList.remove('hidden');
+    }
+
+    function inicializarMapaDetalhes(lat, lng, nomeCid, nomeServ) {
+      const container = document.getElementById('modal-mapa-chamado');
+      if (!container) return;
+
+      if (!mapaDetalhesLeaflet) {
+        mapaDetalhesLeaflet = L.map('modal-mapa-chamado').setView([lat, lng], 16);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap'
+        }).addTo(mapaDetalhesLeaflet);
+      } else {
+        mapaDetalhesLeaflet.invalidateSize();
+        mapaDetalhesLeaflet.setView([lat, lng], 16);
+      }
+
+      if (marcadorMapaDetalhes) {
+        marcadorMapaDetalhes.setLatLng([lat, lng]);
+      } else {
+        marcadorMapaDetalhes = L.marker([lat, lng]).addTo(mapaDetalhesLeaflet);
+      }
+
+      marcadorMapaDetalhes.bindPopup(`<strong>${nomeServ}</strong><br>${nomeCid}`).openPopup();
+    }
+
+    function fecharModalDetalhes() {
+      document.getElementById('modal-detalhes-chamado').classList.add('hidden');
+    }
+
+    function formatarDataIsoYmd(d) {
+      const ano = d.getFullYear();
+      const mes = String(d.getMonth() + 1).padStart(2, '0');
+      const dia = String(d.getDate()).padStart(2, '0');
+      return `${ano}-${mes}-${dia}`;
+    }
+
+    function definirDataAgendamento(diasAFrente, hora) {
+      const d = new Date();
+      d.setDate(d.getDate() + diasAFrente);
+      document.getElementById('agenda-data').value = formatarDataIsoYmd(d);
+      if (hora) {
+        document.getElementById('agenda-hora').value = hora;
+      }
+    }
+
+    // Modal Agendar
+    function abrirModalAgendar(solId) {
+      const sol = chamados.find(c => c.id === solId);
+      if (!sol) return;
+
+      document.getElementById('agenda-sol-id').value = sol.id;
+      document.getElementById('agenda-cid-fone').value = sol.cidadao_telefone;
+      document.getElementById('agenda-cid-nome').value = sol.cidadao_nome;
+      document.getElementById('agenda-serv-nome').value = sol.servico_nome;
+      document.getElementById('agenda-protocolo-txt').value = sol.protocolo;
+
+      // Padrão: Amanhã às 09:00
+      definirDataAgendamento(1, '09:00');
+      document.getElementById('agenda-local').value = sol.unidade_preferencia || 'Sede da Prefeitura / Unidade Central';
+      document.getElementById('agenda-orientacoes').value = 'Compareça com documento oficial com foto e este número de protocolo.';
+
+      document.getElementById('modal-agendar').classList.remove('hidden');
+    }
+
+    function fecharModalAgendar() {
+      document.getElementById('modal-agendar').classList.add('hidden');
+    }
+
+    function fecharModalSucessoAgendamento() {
+      document.getElementById('modal-sucesso-agendamento').classList.add('hidden');
+    }
+
+    async function executarConfirmacaoAgendamento(e) {
+      e.preventDefault();
+      const solId = document.getElementById('agenda-sol-id').value;
+      const dataStr = document.getElementById('agenda-data').value;
+      const horaStr = document.getElementById('agenda-hora').value || '09:00';
+      const local = document.getElementById('agenda-local').value.trim();
+      const orientacoes = document.getElementById('agenda-orientacoes').value.trim();
+      const fone = document.getElementById('agenda-cid-fone').value;
+      const nomeCid = document.getElementById('agenda-cid-nome').value;
+      const servNome = document.getElementById('agenda-serv-nome').value;
+      const proto = document.getElementById('agenda-protocolo-txt').value;
+      const btn = document.getElementById('btn-confirmar-agenda-submit');
+
+      if (!dataStr) {
+        alert('Por favor, selecione uma data no calendário.');
+        return;
+      }
+
+      // Converte data e hora para ISO e formatação pt-BR
+      const [ano, mes, dia] = dataStr.split('-');
+      const dataFormatada = `${dia}/${mes}/${ano} às ${horaStr}`;
+      const dataHoraIso = new Date(`${dataStr}T${horaStr}:00`).toISOString();
+
+      btn.disabled = true;
+      btn.innerText = 'Gravando agendamento no sistema...';
+
+      try {
+        let sucesso = false;
+        try {
+          const { error } = await sb.rpc('confirmar_agendamento', {
+            p_solicitacao_id: solId,
+            p_data_hora: dataHoraIso,
+            p_local: local,
+            p_orientacoes: orientacoes
+          });
+          if (!error) sucesso = true;
+        } catch (e) {
+          console.warn('RPC confirmar_agendamento falhou, tentando fallback direto:', e);
+        }
+
+        if (!sucesso) {
+          const resposta = `Agendamento confirmado para ${dataFormatada} no local: ${local || 'Sede do Município'}. ${orientacoes || ''}`;
+          const { error: updErr } = await sb.from('solicitacoes').update({
+            status: 'AGENDADO',
+            agendado_para: dataHoraIso,
+            resposta_prefeitura: resposta,
+            updated_at: new Date().toISOString()
+          }).eq('id', solId);
+
+          if (updErr) throw updErr;
+        }
+
+        fecharModalAgendar();
+        await carregarChamados();
+        renderizarChamados();
+
+        // Monta link oficial de WhatsApp com a mensagem pronta
+        const msgZap = 
+          `🏛️ *PREFEITURA MUNICIPAL DE ${prefeituraAtual.cidade.toUpperCase()}*\n` +
+          `📅 *CONFIRMAÇÃO OFICIAL DE AGENDAMENTO*\n\n` +
+          `Olá, *${nomeCid}*!\n` +
+          `Sua solicitação para *${servNome}* (Protocolo *#${proto}*) foi *AGENDADA COM SUCESSO*:\n\n` +
+          `📅 *Data e Horário:* ${dataFormatada}\n` +
+          `📍 *Local:* ${local}\n` +
+          `💬 *Orientações:* ${orientacoes}\n\n` +
+          `ConectaPrefeitura - Canal Oficial do Cidadão.`;
+
+        const linkZap = `https://wa.me/55${fone.replace(/\D/g, '')}?text=${encodeURIComponent(msgZap)}`;
+
+        // Preenche o modal de sucesso com os dados e o botão
+        document.getElementById('sucesso-agenda-proto').innerText = `#${proto}`;
+        document.getElementById('sucesso-agenda-nome').innerText = nomeCid;
+        document.getElementById('sucesso-agenda-fone').innerText = `📱 WhatsApp: ${fone}`;
+        document.getElementById('sucesso-agenda-servico').innerText = servNome;
+        document.getElementById('sucesso-agenda-datahora').innerText = `📅 ${dataFormatada}`;
+        document.getElementById('sucesso-agenda-local').innerText = local;
+        document.getElementById('btn-sucesso-whatsapp').href = linkZap;
+
+        // Exibe o modal de sucesso com o botão de envio
+        document.getElementById('modal-sucesso-agendamento').classList.remove('hidden');
+
+      } catch (err) {
+        console.error('Erro ao agendar:', err);
+        alert('Erro ao confirmar agendamento: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Confirmar e Salvar Agendamento ➔';
+      }
+    }
+
+    // Modal Concluir
+    function abrirModalConcluir(solId) {
+      const sol = chamados.find(c => c.id === solId);
+      if (!sol) return;
+
+      document.getElementById('concluir-sol-id').value = sol.id;
+      document.getElementById('concluir-cid-fone').value = sol.cidadao_telefone;
+      document.getElementById('concluir-cid-nome').value = sol.cidadao_nome;
+      document.getElementById('concluir-serv-nome').value = sol.servico_nome;
+      document.getElementById('concluir-protocolo-txt').value = sol.protocolo;
+      document.getElementById('concluir-obs').value = '';
+
+      document.getElementById('modal-concluir').classList.remove('hidden');
+    }
+
+    function fecharModalConcluir() {
+      document.getElementById('modal-concluir').classList.add('hidden');
+    }
+
+    async function executarConclusaoChamado(e) {
+      e.preventDefault();
+      const solId = document.getElementById('concluir-sol-id').value;
+      const obs = document.getElementById('concluir-obs').value.trim();
+      const sol = chamados.find(c => c.id === solId);
+      const btn = document.getElementById('btn-concluir-submit');
+
+      btn.disabled = true;
+      btn.innerText = 'Concluindo chamado...';
+
+      try {
+        let sucesso = false;
+        try {
+          const { error } = await sb.rpc('concluir_solicitacao', {
+            p_solicitacao_id: solId,
+            p_observacao: obs
+          });
+          if (!error) sucesso = true;
+        } catch (e) {
+          console.warn('RPC concluir_solicitacao falhou, tentando fallback direto:', e);
+        }
+
+        if (!sucesso) {
+          const { error: updErr } = await sb.from('solicitacoes').update({
+            status: 'CONCLUIDO',
+            concluido_em: new Date().toISOString(),
+            observacao_conclusao: obs,
+            resposta_prefeitura: obs || 'Atendimento concluído com sucesso pela equipe municipal.',
+            updated_at: new Date().toISOString()
+          }).eq('id', solId);
+
+          if (updErr) throw updErr;
+        }
+
+        fecharModalConcluir();
+        await carregarChamados();
+        renderizarChamados();
+
+        if (sol && confirm('Atendimento concluído! Deseja enviar mensagem de encerramento no WhatsApp do munícipe?')) {
+          const link = gerarLinkMunicipeConclusao(sol, obs);
+          window.open(link, '_blank');
+        }
+      } catch (err) {
+        console.error('Erro ao concluir:', err);
+        alert('Erro ao concluir chamado: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Salvar Conclusão & Gerar Mensagem WhatsApp ➔';
+      }
+    }
+
+    // Modal Cancelar
+    function abrirModalCancelar(solId) {
+      document.getElementById('cancelar-sol-id').value = solId;
+      document.getElementById('cancelar-motivo').value = '';
+      document.getElementById('modal-cancelar').classList.remove('hidden');
+    }
+
+    function fecharModalCancelar() {
+      document.getElementById('modal-cancelar').classList.add('hidden');
+    }
+
+    async function executarCancelamentoChamado(e) {
+      e.preventDefault();
+      const solId = document.getElementById('cancelar-sol-id').value;
+      const motivo = document.getElementById('cancelar-motivo').value.trim();
+      const btn = document.getElementById('btn-cancelar-submit');
+
+      btn.disabled = true;
+      btn.innerText = 'Cancelando chamado...';
+
+      try {
+        let sucesso = false;
+        try {
+          const { error } = await sb.rpc('cancelar_solicitacao', {
+            p_solicitacao_id: solId,
+            p_motivo: motivo
+          });
+          if (!error) sucesso = true;
+        } catch (e) {
+          console.warn('RPC cancelar_solicitacao falhou, tentando fallback direto:', e);
+        }
+
+        if (!sucesso) {
+          const { error: updErr } = await sb.from('solicitacoes').update({
+            status: 'CANCELADO',
+            resposta_prefeitura: motivo || 'Solicitação cancelada pelo município.',
+            updated_at: new Date().toISOString()
+          }).eq('id', solId);
+
+          if (updErr) throw updErr;
+        }
+
+        fecharModalCancelar();
+        await carregarChamados();
+        renderizarChamados();
+      } catch (err) {
+        console.error('Erro ao cancelar chamado:', err);
+        alert('Erro ao cancelar chamado: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Confirmar Cancelamento Definitivo';
+      }
+    }
+
+    // 8. ABA INDICADORES
+    function atualizarIndicadores() {
+      const total = chamados.length;
+      const pendentes = chamados.filter(c => c.status === 'PENDENTE').length;
+      const agendados = chamados.filter(c => c.status === 'AGENDADO').length;
+      const concluidos = chamados.filter(c => c.status === 'CONCLUIDO').length;
+
+      document.getElementById('kpi-total').innerText = total;
+      document.getElementById('kpi-pendentes').innerText = pendentes;
+      document.getElementById('kpi-agendados').innerText = agendados;
+      document.getElementById('kpi-concluidos').innerText = concluidos;
+
+      // Taxa de 72h
+      const chamados72h = chamados.filter(c => c.tipo_atendimento === 'CAMPO_72H');
+      if (chamados72h.length > 0) {
+        const concluidosOuNoPrazo = chamados72h.filter(c => {
+          if (c.status === 'CONCLUIDO') return true;
+          const limite = new Date(c.created_at).getTime() + (72 * 60 * 60 * 1000);
+          return Date.now() <= limite;
+        }).length;
+        const taxa = Math.round((concluidosOuNoPrazo / chamados72h.length) * 100);
+        document.getElementById('kpi-taxa-72h').innerText = `${taxa}%`;
+      } else {
+        document.getElementById('kpi-taxa-72h').innerText = '100%';
+      }
+
+      renderizarGraficos();
+    }
+
+    function renderizarGraficos() {
+      // Gráfico Secretarias
+      const ctxSec = document.getElementById('grafico-secretarias');
+      if (ctxSec) {
+        const contagemPorSec = {};
+        secretarias.forEach(s => contagemPorSec[s.sigla] = 0);
+        chamados.forEach(c => {
+          const sigla = c.setor_sigla || c.secretarias?.sigla || 'OUTROS';
+          contagemPorSec[sigla] = (contagemPorSec[sigla] || 0) + 1;
+        });
+
+        if (chartSecretarias) chartSecretarias.destroy();
+        chartSecretarias = new Chart(ctxSec, {
+          type: 'bar',
+          data: {
+            labels: Object.keys(contagemPorSec),
+            datasets: [{
+              label: 'Chamados',
+              data: Object.values(contagemPorSec),
+              backgroundColor: '#3b82f6',
+              borderRadius: 8
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              y: { ticks: { color: '#94a3b8', stepSize: 1 }, grid: { color: '#1e293b' } },
+              x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+            }
+          }
+        });
+      }
+
+      // Gráfico Status
+      const ctxSt = document.getElementById('grafico-status');
+      if (ctxSt) {
+        const pend = chamados.filter(c => c.status === 'PENDENTE').length;
+        const agend = chamados.filter(c => c.status === 'AGENDADO').length;
+        const concl = chamados.filter(c => c.status === 'CONCLUIDO').length;
+        const canc = chamados.filter(c => c.status === 'CANCELADO').length;
+
+        if (chartStatus) chartStatus.destroy();
+        chartStatus = new Chart(ctxSt, {
+          type: 'doughnut',
+          data: {
+            labels: ['Pendentes', 'Agendados / 72h', 'Concluídos', 'Cancelados'],
+            datasets: [{
+              data: [pend, agend, concl, canc],
+              backgroundColor: ['#f59e0b', '#3b82f6', '#10b981', '#f43f5e'],
+              borderWidth: 0
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom', labels: { color: '#cbd5e1', font: { size: 11 } } }
+            }
+          }
+        });
+      }
+    }
+
+    // 9. ABA SECRETARIAS E SERVIÇOS (CRUD)
+    function renderizarSecretariasCrud() {
+      const container = document.getElementById('lista-secretarias-crud');
+      if (!container) return;
+
+      container.innerHTML = secretarias.map(s => `
+        <div class="bg-slate-950 border border-slate-800 p-3.5 rounded-xl flex items-center justify-between gap-3 shadow-sm">
+          <div class="flex items-center gap-2.5">
+            <span class="text-2xl">${s.icone || '🏢'}</span>
+            <div>
+              <p class="font-bold text-xs text-white">${s.nome}</p>
+              <p class="text-[10px] text-slate-400 font-mono">${s.sigla} • ${s.ativa ? '<span class="text-emerald-400">Ativa</span>' : '<span class="text-rose-400">Inativa</span>'}</p>
+            </div>
+          </div>
+          <div>
+            ${usuarioAtual.papel === 'ADMIN' ? `
+              <button onclick="alternarStatusSecretaria('${s.id}', ${!s.ativa})" 
+                      class="text-[10px] font-bold px-2.5 py-1 rounded-lg border ${s.ativa ? 'border-rose-800 text-rose-400 hover:bg-rose-950/40' : 'border-emerald-800 text-emerald-400 hover:bg-emerald-950/40'} transition">
+                ${s.ativa ? 'Desativar' : 'Reativar'}
+              </button>
+            ` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function abrirModalNovaSecretaria() {
+      document.getElementById('sec-nome-input').value = '';
+      document.getElementById('sec-sigla-input').value = '';
+      document.getElementById('modal-nova-secretaria').classList.remove('hidden');
+    }
+
+    function fecharModalNovaSecretaria() {
+      document.getElementById('modal-nova-secretaria').classList.add('hidden');
+    }
+
+    async function salvarNovaSecretaria(e) {
+      e.preventDefault();
+      const nome = document.getElementById('sec-nome-input').value.trim();
+      const sigla = document.getElementById('sec-sigla-input').value.trim().toUpperCase();
+      const icone = document.getElementById('sec-icone-input').value.trim() || '🏛️';
+
+      try {
+        const { error } = await sb.from('secretarias').insert([{
+          prefeitura_id: prefeituraAtual.id,
+          nome,
+          sigla,
+          icone,
+          ativa: true
+        }]);
+
+        if (error) throw error;
+
+        fecharModalNovaSecretaria();
+        await carregarSecretarias();
+        alert(`Secretaria ${sigla} criada com sucesso!`);
+      } catch (err) {
+        console.error('Erro ao criar secretaria:', err);
+        alert('Erro ao salvar secretaria: ' + err.message);
+      }
+    }
+
+    async function alternarStatusSecretaria(id, novoStatus) {
+      try {
+        const { error } = await sb.from('secretarias').update({ ativa: novoStatus }).eq('id', id);
+        if (error) throw error;
+        await carregarSecretarias();
+      } catch (err) {
+        console.error('Erro ao alterar status:', err);
+        alert('Erro: ' + err.message);
+      }
+    }
+
+    function renderizarServicosCrud() {
+      const container = document.getElementById('lista-servicos-crud');
+      if (!container) return;
+
+      container.innerHTML = servicos.map(s => {
+        const sec = s.secretarias;
+        const is72h = s.agendamento_direto_72h || s.tipo_fluxo === 'ZELADORIA';
+        return `
+          <div class="py-3.5 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">${s.icone || '📌'}</span>
+              <div>
+                <div class="flex items-center gap-2">
+                  <p class="font-bold text-xs text-white">${s.nome}</p>
+                  <span class="text-[9px] font-bold px-2 py-0.2 rounded-full ${is72h ? 'bg-amber-950 text-amber-300 border border-amber-800' : 'bg-blue-950 text-blue-300 border border-blue-800'}">
+                    ${is72h ? '⚡ 72h Direto' : s.tipo_fluxo}
+                  </span>
+                  ${!s.ativo ? '<span class="text-[9px] font-bold bg-rose-950 text-rose-300 border border-rose-800 px-1.5 rounded">Inativo</span>' : ''}
+                </div>
+                <p class="text-[11px] text-slate-400">
+                  🏢 ${sec?.nome || s.secretaria_nome || 'Secretaria'} (${sec?.sigla || s.secretaria_sigla || 'SETOR'})
+                  ${s.exige_endereco ? ' • 📍 Exige Endereço' : ''}
+                  ${s.exige_unidade_saude ? ' • 🏥 Exige UBS' : ''}
+                </p>
+              </div>
+            </div>
+
+            <div>
+              ${usuarioAtual.papel === 'ADMIN' ? `
+                <button onclick="alternarStatusServico('${s.id}', ${!s.ativo})" 
+                        class="text-[10px] font-bold px-2.5 py-1 rounded-lg border ${s.ativo ? 'border-rose-800 text-rose-400 hover:bg-rose-950/40' : 'border-emerald-800 text-emerald-400 hover:bg-emerald-950/40'} transition">
+                  ${s.ativo ? 'Desativar' : 'Ativar'}
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function abrirModalNovoServico() {
+      document.getElementById('ns-nome').value = '';
+      document.getElementById('modal-novo-servico').classList.remove('hidden');
+    }
+
+    function fecharModalNovoServico() {
+      document.getElementById('modal-novo-servico').classList.add('hidden');
+    }
+
+    function aoMudarFluxoNovoServ(val) {
+      if (val === 'ZELADORIA') {
+        document.getElementById('ns-exige-endereco').checked = true;
+        document.getElementById('ns-agendamento-72h').checked = true;
+      }
+    }
+
+    async function salvarNovoServicoAdmin(e) {
+      e.preventDefault();
+      const nome = document.getElementById('ns-nome').value.trim();
+      const secId = document.getElementById('ns-secretaria').value;
+      const icone = document.getElementById('ns-icone').value.trim() || '📌';
+      const fluxo = document.getElementById('ns-fluxo').value;
+      const prazo = parseInt(document.getElementById('ns-prazo').value, 10) || 3;
+      const exigeEnd = document.getElementById('ns-exige-endereco').checked;
+      const exigeUbs = document.getElementById('ns-exige-ubs').checked;
+      const agend72h = document.getElementById('ns-agendamento-72h').checked;
+
+      const sec = secretarias.find(s => s.id === secId);
+
+      try {
+        const { error } = await sb.from('catalogo_servicos').insert([{
+          prefeitura_id: prefeituraAtual.id,
+          secretaria_id: secId,
+          secretaria_nome: sec?.nome || 'Secretaria',
+          secretaria_sigla: sec?.sigla || 'SEM',
+          nome,
+          icone,
+          tipo_fluxo: fluxo,
+          prazo_estimado_dias: prazo,
+          exige_endereco: exigeEnd,
+          exige_unidade_saude: exigeUbs,
+          exige_cartao_sus: false,
+          agendamento_direto_72h: agend72h,
+          ativo: true
+        }]);
+
+        if (error) throw error;
+
+        fecharModalNovoServico();
+        await carregarServicos();
+        alert(`Serviço "${nome}" cadastrado e ativado no app com sucesso!`);
+      } catch (err) {
+        console.error('Erro ao criar serviço:', err);
+        alert('Erro ao salvar serviço: ' + err.message);
+      }
+    }
+
+    async function alternarStatusServico(id, novoStatus) {
+      try {
+        const { error } = await sb.from('catalogo_servicos').update({ ativo: novoStatus }).eq('id', id);
+        if (error) throw error;
+        await carregarServicos();
+      } catch (err) {
+        console.error('Erro ao alterar status:', err);
+        alert('Erro: ' + err.message);
+      }
+    }
+
+    // 10. ABA EQUIPE (ADMIN)
+    async function carregarEquipe() {
+      if (usuarioAtual.papel !== 'ADMIN') return;
+
+      const { data, error } = await sb
+        .from('usuarios_prefeitura')
+        .select('*, secretarias(nome, sigla)')
+        .eq('prefeitura_id', prefeituraAtual.id)
+        .order('nome');
+
+      const tbody = document.getElementById('tabela-equipe-tbody');
+      if (error || !data || data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-500">Nenhum outro servidor cadastrado.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = data.map(u => `
+        <tr class="hover:bg-slate-900/40">
+          <td class="p-3">
+            <p class="font-bold text-white">${u.nome || 'Servidor'}</p>
+            <p class="text-slate-400 text-[10px]">${u.email || 'Sem e-mail'}</p>
+          </td>
+          <td class="p-3">
+            <span class="text-[9px] font-black px-2 py-0.5 rounded-full ${u.papel === 'ADMIN' ? 'bg-blue-900/60 text-blue-300 border border-blue-700' : 'bg-slate-800 text-slate-300 border border-slate-700'}">
+              ${u.papel}
+            </span>
+          </td>
+          <td class="p-3 text-slate-300">
+            ${u.secretarias ? `${u.secretarias.nome} (${u.secretarias.sigla})` : '<span class="text-slate-500">Todas (Visão Global)</span>'}
+          </td>
+          <td class="p-3">
+            ${u.ativo ? '<span class="text-emerald-400 font-bold">● Ativo</span>' : '<span class="text-rose-400 font-bold">● Inativo</span>'}
+          </td>
+          <td class="p-3 text-right">
+            ${u.user_id !== usuarioAtual.user_id ? `
+              <button onclick="alternarStatusUsuario('${u.user_id}', ${!u.ativo})" 
+                      class="text-[10px] font-bold px-2.5 py-1 rounded-lg border ${u.ativo ? 'border-rose-800 text-rose-400 hover:bg-rose-950/40' : 'border-emerald-800 text-emerald-400 hover:bg-emerald-950/40'} transition">
+                ${u.ativo ? 'Desativar' : 'Reativar'}
+              </button>
+            ` : '<span class="text-slate-500 text-[10px]">Você</span>'}
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function abrirModalNovoUsuario() {
+      document.getElementById('usr-nome').value = '';
+      document.getElementById('usr-email').value = '';
+      document.getElementById('modal-novo-usuario').classList.remove('hidden');
+    }
+
+    function fecharModalNovoUsuario() {
+      document.getElementById('modal-novo-usuario').classList.add('hidden');
+    }
+
+    function aoMudarPapelNovoUsuario(val) {
+      document.getElementById('bloco-usr-secretaria').classList.toggle('hidden', val === 'ADMIN');
+    }
+
+    async function salvarNovoUsuario(e) {
+      e.preventDefault();
+      const nome = document.getElementById('usr-nome').value.trim();
+      const email = document.getElementById('usr-email').value.trim().toLowerCase();
+      const papel = document.getElementById('usr-papel').value;
+      const secId = papel === 'SERVIDOR' ? document.getElementById('usr-secretaria').value : null;
+
+      try {
+        // Insere registro no banco
+        const { error } = await sb.from('usuarios_prefeitura').insert([{
+          user_id: crypto.randomUUID(), // Temporário até o login do Auth
+          prefeitura_id: prefeituraAtual.id,
+          secretaria_id: secId,
+          nome,
+          email,
+          papel,
+          ativo: true
+        }]);
+
+        if (error) throw error;
+
+        fecharModalNovoUsuario();
+        await carregarEquipe();
+        alert(`Servidor ${nome} (${email}) adicionado com sucesso!`);
+      } catch (err) {
+        console.error('Erro ao adicionar servidor:', err);
+        alert('Erro ao cadastrar servidor: ' + err.message);
+      }
+    }
+
+    async function alternarStatusUsuario(uid, novoStatus) {
+      try {
+        const { error } = await sb.from('usuarios_prefeitura').update({ ativo: novoStatus }).eq('user_id', uid);
+        if (error) throw error;
+        await carregarEquipe();
+      } catch (err) {
+        console.error('Erro ao alternar status do usuário:', err);
+        alert('Erro: ' + err.message);
+      }
+    }
+
+    // 11. NAVEGAÇÃO ENTRE AS ABAS DO PAINEL
+    function navegarAba(aba) {
+      document.getElementById('conteudo-chamados').classList.toggle('hidden', aba !== 'chamados');
+      document.getElementById('conteudo-indicadores').classList.toggle('hidden', aba !== 'indicadores');
+      document.getElementById('conteudo-servicos').classList.toggle('hidden', aba !== 'servicos');
+      document.getElementById('conteudo-equipe').classList.toggle('hidden', aba !== 'equipe');
+
+      const abas = ['chamados', 'indicadores', 'servicos', 'equipe'];
+      abas.forEach(a => {
+        const btn = document.getElementById(`aba-btn-${a}`);
+        if (!btn) return;
+        if (a === aba) {
+          btn.className = 'px-4 py-2.5 text-xs font-bold border-b-2 border-blue-500 text-blue-400 transition flex items-center gap-1.5 whitespace-nowrap';
+        } else {
+          btn.className = 'px-4 py-2.5 text-xs font-semibold text-slate-400 hover:text-slate-200 border-b-2 border-transparent transition flex items-center gap-1.5 whitespace-nowrap';
+        }
+      });
+
+      if (aba === 'indicadores') {
+        atualizarIndicadores();
+      } else if (aba === 'equipe') {
+        carregarEquipe();
+      }
+    }
+  </script>
+</body>
+</html>
+
