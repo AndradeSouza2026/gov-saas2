@@ -107,7 +107,7 @@
         </div>
       </div>
 
-      <!-- Navegação das 4 Abas -->
+      <!-- Navegação das Abas -->
       <div class="max-w-7xl mx-auto px-4 flex gap-1 overflow-x-auto border-t border-slate-800/80">
         <button onclick="navegarAba('chamados')" id="aba-btn-chamados" 
                 class="px-4 py-2.5 text-xs font-bold border-b-2 border-blue-500 text-blue-400 transition flex items-center gap-1.5 whitespace-nowrap">
@@ -128,6 +128,11 @@
         <button onclick="navegarAba('equipe')" id="aba-btn-equipe" 
                 class="px-4 py-2.5 text-xs font-semibold text-slate-400 hover:text-slate-200 border-b-2 border-transparent transition flex items-center gap-1.5 whitespace-nowrap hidden">
           <span>👥</span> <span>Equipe de Servidores</span>
+        </button>
+
+        <button onclick="navegarAba('prefeituras')" id="aba-btn-prefeituras" 
+                class="px-4 py-2.5 text-xs font-semibold text-slate-400 hover:text-slate-200 border-b-2 border-transparent transition flex items-center gap-1.5 whitespace-nowrap hidden">
+          <span>🌐</span> <span>Gestão de Prefeituras</span>
         </button>
       </div>
     </header>
@@ -299,6 +304,7 @@
               <thead class="bg-slate-950 text-slate-400 border-b border-slate-800 uppercase text-[10px]">
                 <tr>
                   <th class="p-3">Nome / E-mail</th>
+                  <th class="p-3">Município</th>
                   <th class="p-3">Papel</th>
                   <th class="p-3">Secretaria Designada</th>
                   <th class="p-3">Status</th>
@@ -307,6 +313,44 @@
               </thead>
               <tbody id="tabela-equipe-tbody" class="divide-y divide-slate-800/60"></tbody>
             </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== ABA 5: GESTÃO DE PREFEITURAS (SUPER_ADMIN) ==================== -->
+      <section id="conteudo-prefeituras" class="space-y-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-4 shadow-sm">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="text-sm font-black text-white">Prefeituras Municipais Conectadas</h3>
+                <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-purple-900/60 text-purple-300 border border-purple-700">Multi-Tenant GovSaaS</span>
+              </div>
+              <p class="text-xs text-slate-400 mt-0.5">Cadastre novos municípios com implantação automática de serviços ou gerencie prefeituras parceiras.</p>
+            </div>
+            <button onclick="abrirModalNovaPrefeitura()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition shadow flex items-center gap-1.5">
+              <span>+</span> <span>Nova Prefeitura</span>
+            </button>
+          </div>
+
+          <!-- Filtro de Busca das Cidades -->
+          <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
+            <div class="relative flex-1 min-w-[240px]">
+              <input type="text" id="filtro-busca-prefeituras" oninput="filtrarListaPrefeituras()" 
+                     placeholder="Buscar por nome do município, cidade ou estado..." 
+                     class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl pl-9 pr-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500">
+              <span class="absolute left-3 top-2.5 text-xs text-slate-500">🔍</span>
+            </div>
+            <div class="text-xs text-slate-400 font-semibold whitespace-nowrap">
+              Exibindo <span id="lbl-total-prefeituras" class="text-white font-bold">0</span> municípios
+            </div>
+          </div>
+
+          <!-- Grid de Cards de Prefeituras -->
+          <div id="grid-prefeituras-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-2">
+            <div class="text-center py-12 col-span-full text-slate-500 text-xs">
+              <span class="animate-spin inline-block mr-1">⏳</span> Carregando municípios cadastrados...
+            </div>
           </div>
         </div>
       </section>
@@ -659,46 +703,187 @@
   <div id="modal-novo-usuario" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
     <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
       <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-        <h3 class="text-sm font-black text-white">Cadastrar Servidor na Prefeitura</h3>
+        <div class="flex items-center gap-2">
+          <span class="text-base">⚡</span>
+          <h3 class="text-sm font-black text-white">Cadastrar Novo Servidor</h3>
+        </div>
         <button onclick="fecharModalNovoUsuario()" class="text-slate-400 hover:text-white font-bold">✕</button>
       </div>
 
       <form onsubmit="salvarNovoUsuario(event)" class="space-y-3">
         <div>
           <label class="block text-xs font-bold text-slate-300 mb-1">Nome Completo *</label>
-          <input type="text" id="usr-nome" required placeholder="Nome do servidor" 
+          <input type="text" id="usr-nome" required placeholder="Ex: Carlos Eduardo de Oliveira" 
                  class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500">
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-300 mb-1">E-mail de Acesso *</label>
-          <input type="email" id="usr-email" required placeholder="servidor@prefeitura.gov.br" 
+          <label class="block text-xs font-bold text-slate-300 mb-1">E-mail de Acesso (Login) *</label>
+          <input type="email" id="usr-email" required placeholder="servidor@prefeitura.es.gov.br" 
                  class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1 flex justify-between">
+            <span>Senha Provisória de Acesso *</span>
+            <span class="text-[10px] text-slate-500">Mínimo 6 caracteres</span>
+          </label>
+          <div class="relative">
+            <input type="password" id="usr-senha" required minlength="6" placeholder="Defina a senha inicial..." 
+                   class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl pl-3 pr-10 py-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500">
+            <button type="button" onclick="alternarVisibilidadeSenha('usr-senha')" 
+                    class="absolute right-3 top-2.5 text-xs text-slate-400 hover:text-white">
+              👁️
+            </button>
+          </div>
+        </div>
+
+        <!-- Seletor de Prefeitura (para Super Admin escolher qualquer cidade) -->
+        <div id="bloco-usr-prefeitura" class="hidden">
+          <label class="block text-xs font-bold text-slate-300 mb-1">Município / Prefeitura Designada *</label>
+          <select id="usr-prefeitura" onchange="aoMudarPrefeituraNovoUsuario(this.value)" 
+                  class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"></select>
         </div>
 
         <div class="grid grid-cols-2 gap-2">
           <div>
-            <label class="block text-xs font-bold text-slate-300 mb-1">Papel de Acesso *</label>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Nível de Acesso *</label>
             <select id="usr-papel" onchange="aoMudarPapelNovoUsuario(this.value)" 
                     class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500">
               <option value="SERVIDOR">SERVIDOR (Setorial)</option>
               <option value="ADMIN">ADMIN (Gabinete Geral)</option>
+              <option value="SUPER_ADMIN" id="opt-papel-superadmin" class="hidden">SUPER_ADMIN (Multi-Cidades)</option>
             </select>
           </div>
 
           <div id="bloco-usr-secretaria">
-            <label class="block text-xs font-bold text-slate-300 mb-1">Secretaria Designada</label>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Secretaria *</label>
             <select id="usr-secretaria" 
                     class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"></select>
           </div>
         </div>
 
-        <div class="bg-amber-500/10 border border-amber-500/30 p-2.5 rounded-xl text-[11px] text-amber-300">
-          ℹ️ O usuário poderá se autenticar usando este e-mail no painel com sua conta do Supabase Auth.
+        <div class="bg-blue-500/10 border border-blue-500/30 p-2.5 rounded-xl text-[11px] text-blue-300">
+          ⚡ <strong>Criação 100% Automática:</strong> A conta é criada e confirmada no Supabase Auth instantaneamente. O servidor poderá fazer login com este e-mail e senha no mesmo segundo!
         </div>
 
-        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs shadow transition">
-          Salvar Servidor
+        <button type="submit" id="btn-salvar-usuario" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs shadow transition">
+          Criar e Ativar Servidor ➔
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: SUCESSO CADASTRO USUÁRIO ==================== -->
+  <div id="modal-sucesso-novo-usuario" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-900 border border-emerald-500/50 rounded-3xl max-w-md w-full p-6 text-center space-y-4 shadow-2xl">
+      <div class="w-14 h-14 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded-full flex items-center justify-center mx-auto text-2xl font-black">
+        ✓
+      </div>
+
+      <div>
+        <h3 class="text-base font-black text-white">Servidor Cadastrado com Sucesso!</h3>
+        <p class="text-xs text-slate-400 mt-1">O login foi gerado automaticamente no Supabase Auth e o servidor já está ativo.</p>
+      </div>
+
+      <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-left text-xs space-y-2">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+          <span class="text-slate-400 font-semibold">Servidor:</span>
+          <span id="sucesso-usr-nome" class="font-bold text-white"></span>
+        </div>
+        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+          <span class="text-slate-400 font-semibold">Município:</span>
+          <span id="sucesso-usr-cidade" class="font-bold text-amber-300"></span>
+        </div>
+        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+          <span class="text-slate-400 font-semibold">Nível de Acesso:</span>
+          <span id="sucesso-usr-papel" class="font-bold text-blue-400 font-mono"></span>
+        </div>
+        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+          <span class="text-slate-400 font-semibold">E-mail de Login:</span>
+          <span id="sucesso-usr-email" class="font-bold text-emerald-400 font-mono"></span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-slate-400 font-semibold">Senha Provisória:</span>
+          <span id="sucesso-usr-senha" class="font-bold text-white font-mono bg-slate-900 px-2 py-0.5 rounded border border-slate-700"></span>
+        </div>
+      </div>
+
+      <div class="space-y-2 pt-1">
+        <button type="button" onclick="copiarDadosAcessoServidor()" 
+                class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-4 rounded-2xl text-xs shadow transition flex items-center justify-center gap-2">
+          <span>📋</span>
+          <span id="btn-copiar-credenciais-txt">Copiar Dados de Acesso (WhatsApp / E-mail)</span>
+        </button>
+
+        <button type="button" onclick="fecharModalSucessoNovoUsuario()" 
+                class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2 rounded-2xl text-xs transition">
+          Fechar e Voltar à Equipe
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: NOVA PREFEITURA ==================== -->
+  <div id="modal-nova-prefeitura" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-base">🏛️</span>
+          <h3 class="text-sm font-black text-white">Cadastrar Nova Prefeitura</h3>
+        </div>
+        <button onclick="fecharModalNovaPrefeitura()" class="text-slate-400 hover:text-white font-bold">✕</button>
+      </div>
+
+      <form onsubmit="salvarNovaPrefeitura(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">Nome Oficial da Prefeitura *</label>
+          <input type="text" id="np-nome" required placeholder="Ex: Prefeitura Municipal de Marataízes" 
+                 class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <div class="grid grid-cols-3 gap-2">
+          <div class="col-span-2">
+            <label class="block text-xs font-bold text-slate-300 mb-1">Nome da Cidade *</label>
+            <input type="text" id="np-cidade" required placeholder="Ex: Marataízes" 
+                   class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">UF *</label>
+            <input type="text" id="np-uf" required value="ES" maxlength="2" 
+                   class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 uppercase">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Latitude (GPS Opcional)</label>
+            <input type="number" step="any" id="np-lat" placeholder="-21.0433" 
+                   class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Longitude (GPS Opcional)</label>
+            <input type="number" step="any" id="np-lng" placeholder="-40.8244" 
+                   class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">URL do Brasão / Logotipo (Opcional)</label>
+          <input type="url" id="np-brasao" placeholder="https://exemplo.com/brasao.png" 
+                 class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <div class="bg-blue-950/40 border border-blue-800/50 p-3 rounded-xl space-y-1 text-xs">
+          <label class="flex items-center gap-2 font-bold text-blue-300 cursor-pointer">
+            <input type="checkbox" id="np-semear" checked class="rounded text-blue-600">
+            <span>Criar automaticamente 5 Secretarias e 17 Serviços Padrões</span>
+          </label>
+          <p class="text-[11px] text-slate-400">Instala automaticamente Saúde (SEMUS), Zeladoria (SEMOB), Educação (SEME), Cidadania (SEMCT) e Assistência Social (SEMDS).</p>
+        </div>
+
+        <button type="submit" id="btn-salvar-nova-pref" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs shadow transition">
+          Cadastrar e Estruturar Município ➔
         </button>
       </form>
     </div>
@@ -897,18 +1082,26 @@
       const lblSetor = document.getElementById('admin-usuario-setor');
       const blocoSuper = document.getElementById('bloco-superadmin-cidades');
 
-      const isSuperAdmin = usuarioAtual.papel === 'SUPER_ADMIN' 
-        || usuarioAtual.papel === 'ADMIN'
-        || usuarioAtual.email?.toLowerCase() === 'joseandrade1406@gmail.com'
+      const isSuper = usuarioAtual.papel === 'SUPER_ADMIN' 
+        || usuarioAtual.email?.toLowerCase() === 'joseandrade1406@gmail.com';
+      const isAdmin = usuarioAtual.papel === 'ADMIN'
         || usuarioAtual.email?.toLowerCase() === 'admin@prefeitura.gov.br';
 
-      if (isSuperAdmin) {
+      if (isSuper) {
         blocoSuper.classList.remove('hidden');
-        badgePapel.innerText = usuarioAtual.papel === 'SUPER_ADMIN' || usuarioAtual.email?.toLowerCase() === 'joseandrade1406@gmail.com' ? '👑 SUPER ADMIN' : 'ADMIN';
+        badgePapel.innerText = '👑 SUPER ADMIN';
         badgePapel.className = 'text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40';
-        lblSetor.innerText = '🏛️ Gestão Municipal (Seletor Ativo)';
+        lblSetor.innerText = '🏛️ Gestão Multi-Cidades (Visão Geral)';
         document.getElementById('aba-btn-equipe').classList.remove('hidden');
+        document.getElementById('aba-btn-prefeituras').classList.remove('hidden');
         await carregarSeletorSuperAdmin();
+      } else if (isAdmin) {
+        blocoSuper.classList.add('hidden');
+        badgePapel.innerText = 'ADMIN';
+        badgePapel.className = 'text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40';
+        lblSetor.innerText = `🏛️ Gabinete Geral - ${prefeituraAtual.cidade}`;
+        document.getElementById('aba-btn-equipe').classList.remove('hidden');
+        document.getElementById('aba-btn-prefeituras').classList.add('hidden');
       } else {
         blocoSuper.classList.add('hidden');
         const secNome = usuarioAtual.secretarias?.sigla || 'Setorial';
@@ -916,6 +1109,7 @@
         badgePapel.innerText = 'SERVIDOR';
         badgePapel.className = 'text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700';
         document.getElementById('aba-btn-equipe').classList.add('hidden');
+        document.getElementById('aba-btn-prefeituras').classList.add('hidden');
         filtroSecretariaAtual = usuarioAtual.secretaria_id;
         document.getElementById('filtro-select-secretaria').disabled = true;
       }
@@ -1923,19 +2117,26 @@
       }
     }
 
-    // 10. ABA EQUIPE (ADMIN)
-    async function carregarEquipe() {
-      if (usuarioAtual.papel !== 'ADMIN') return;
+    // 10. ABA EQUIPE (ADMIN / SUPER_ADMIN)
+    let ultimoUsuarioCriado = null;
 
-      const { data, error } = await sb
+    async function carregarEquipe() {
+      if (usuarioAtual.papel !== 'ADMIN' && usuarioAtual.papel !== 'SUPER_ADMIN') return;
+
+      let query = sb
         .from('usuarios_prefeitura')
-        .select('*, secretarias(nome, sigla)')
-        .eq('prefeitura_id', prefeituraAtual.id)
+        .select('*, prefeituras(cidade, uf), secretarias(nome, sigla)')
         .order('nome');
 
+      if (prefeituraAtual && prefeituraAtual.id !== 'TODAS') {
+        query = query.eq('prefeitura_id', prefeituraAtual.id);
+      }
+
+      const { data, error } = await query;
       const tbody = document.getElementById('tabela-equipe-tbody');
+
       if (error || !data || data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-500">Nenhum outro servidor cadastrado.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-500">Nenhum servidor encontrado para esta visualização.</td></tr>`;
         return;
       }
 
@@ -1943,34 +2144,86 @@
         <tr class="hover:bg-slate-900/40">
           <td class="p-3">
             <p class="font-bold text-white">${u.nome || 'Servidor'}</p>
-            <p class="text-slate-400 text-[10px]">${u.email || 'Sem e-mail'}</p>
+            <p class="text-slate-400 text-[10px] font-mono">${u.email || 'Sem e-mail'}</p>
           </td>
           <td class="p-3">
-            <span class="text-[9px] font-black px-2 py-0.5 rounded-full ${u.papel === 'ADMIN' ? 'bg-blue-900/60 text-blue-300 border border-blue-700' : 'bg-slate-800 text-slate-300 border border-slate-700'}">
+            <span class="text-[10px] font-bold text-slate-300 flex items-center gap-1">
+              <span>🏛️</span> <span>${u.prefeituras?.cidade || 'Municipal'}</span>
+            </span>
+          </td>
+          <td class="p-3">
+            <span class="text-[9px] font-black px-2 py-0.5 rounded-full ${
+              u.papel === 'SUPER_ADMIN' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' :
+              u.papel === 'ADMIN' ? 'bg-blue-900/60 text-blue-300 border border-blue-700' : 
+              'bg-slate-800 text-slate-300 border border-slate-700'
+            }">
               ${u.papel}
             </span>
           </td>
           <td class="p-3 text-slate-300">
-            ${u.secretarias ? `${u.secretarias.nome} (${u.secretarias.sigla})` : '<span class="text-slate-500">Todas (Visão Global)</span>'}
+            ${u.secretarias ? `${u.secretarias.nome} (${u.secretarias.sigla})` : '<span class="text-slate-500 italic">Todas (Gabinete Geral)</span>'}
           </td>
           <td class="p-3">
             ${u.ativo ? '<span class="text-emerald-400 font-bold">● Ativo</span>' : '<span class="text-rose-400 font-bold">● Inativo</span>'}
           </td>
           <td class="p-3 text-right">
-            ${u.user_id !== usuarioAtual.user_id ? `
-              <button onclick="alternarStatusUsuario('${u.user_id}', ${!u.ativo})" 
-                      class="text-[10px] font-bold px-2.5 py-1 rounded-lg border ${u.ativo ? 'border-rose-800 text-rose-400 hover:bg-rose-950/40' : 'border-emerald-800 text-emerald-400 hover:bg-emerald-950/40'} transition">
-                ${u.ativo ? 'Desativar' : 'Reativar'}
-              </button>
-            ` : '<span class="text-slate-500 text-[10px]">Você</span>'}
+            <div class="flex items-center justify-end gap-1.5">
+              ${u.user_id !== usuarioAtual.user_id ? `
+                <button onclick="alternarStatusUsuario('${u.user_id}', ${!u.ativo})" 
+                        class="text-[10px] font-bold px-2 py-1 rounded-lg border ${u.ativo ? 'border-amber-800 text-amber-400 hover:bg-amber-950/40' : 'border-emerald-800 text-emerald-400 hover:bg-emerald-950/40'} transition">
+                  ${u.ativo ? 'Desativar' : 'Reativar'}
+                </button>
+                <button onclick="excluirUsuarioAdmin('${u.user_id}', '${(u.nome || u.email).replace(/'/g, "\\'")}')" 
+                        class="text-[10px] font-bold px-2 py-1 rounded-lg border border-rose-900 text-rose-400 hover:bg-rose-950/50 transition" 
+                        title="Excluir usuário permanentemente">
+                  🗑️
+                </button>
+              ` : '<span class="text-slate-500 text-[10px] font-bold">Sua Conta</span>'}
+            </div>
           </td>
         </tr>
       `).join('');
     }
 
-    function abrirModalNovoUsuario() {
+    async function abrirModalNovoUsuario() {
       document.getElementById('usr-nome').value = '';
       document.getElementById('usr-email').value = '';
+      document.getElementById('usr-senha').value = '';
+      document.getElementById('usr-senha').type = 'password';
+
+      const isSuper = usuarioAtual.papel === 'SUPER_ADMIN' || usuarioAtual.email?.toLowerCase() === 'joseandrade1406@gmail.com';
+      const blocoPref = document.getElementById('bloco-usr-prefeitura');
+      const optSuper = document.getElementById('opt-papel-superadmin');
+
+      if (isSuper) {
+        blocoPref.classList.remove('hidden');
+        optSuper.classList.remove('hidden');
+
+        // Popula cidades
+        if (listaTodasPrefeituras.length === 0) {
+          const { data } = await sb.from('prefeituras').select('*').order('cidade');
+          if (data) listaTodasPrefeituras = data;
+        }
+
+        const selPref = document.getElementById('usr-prefeitura');
+        selPref.innerHTML = listaTodasPrefeituras.map(p => `
+          <option value="${p.id}" ${prefeituraAtual && prefeituraAtual.id === p.id ? 'selected' : ''}>
+            🏛️ ${p.cidade} (${p.uf || 'ES'})
+          </option>
+        `).join('');
+
+        const selectedPrefId = selPref.value || (listaTodasPrefeituras[0] ? listaTodasPrefeituras[0].id : null);
+        if (selectedPrefId) {
+          await aoMudarPrefeituraNovoUsuario(selectedPrefId);
+        }
+      } else {
+        blocoPref.classList.add('hidden');
+        optSuper.classList.add('hidden');
+        preencherSelectSecretariasLocal();
+      }
+
+      document.getElementById('usr-papel').value = 'SERVIDOR';
+      document.getElementById('bloco-usr-secretaria').classList.remove('hidden');
       document.getElementById('modal-novo-usuario').classList.remove('hidden');
     }
 
@@ -1978,37 +2231,141 @@
       document.getElementById('modal-novo-usuario').classList.add('hidden');
     }
 
+    function alternarVisibilidadeSenha(inputId) {
+      const el = document.getElementById(inputId);
+      if (!el) return;
+      el.type = el.type === 'password' ? 'text' : 'password';
+    }
+
+    async function aoMudarPrefeituraNovoUsuario(prefId) {
+      const selSec = document.getElementById('usr-secretaria');
+      selSec.innerHTML = '<option value="">Carregando secretarias...</option>';
+
+      const { data } = await sb
+        .from('secretarias')
+        .select('*')
+        .eq('prefeitura_id', prefId)
+        .order('nome');
+
+      if (!data || data.length === 0) {
+        selSec.innerHTML = '<option value="">Nenhuma secretaria cadastrada nesta prefeitura</option>';
+        return;
+      }
+
+      selSec.innerHTML = data.map(s => `
+        <option value="${s.id}">${s.icone || '🏢'} ${s.nome} (${s.sigla})</option>
+      `).join('');
+    }
+
+    function preencherSelectSecretariasLocal() {
+      const selSec = document.getElementById('usr-secretaria');
+      if (secretarias && secretarias.length > 0) {
+        selSec.innerHTML = secretarias.map(s => `
+          <option value="${s.id}">${s.icone || '🏢'} ${s.nome} (${s.sigla})</option>
+        `).join('');
+      } else {
+        selSec.innerHTML = '<option value="">Nenhuma secretaria disponível</option>';
+      }
+    }
+
     function aoMudarPapelNovoUsuario(val) {
-      document.getElementById('bloco-usr-secretaria').classList.toggle('hidden', val === 'ADMIN');
+      document.getElementById('bloco-usr-secretaria').classList.toggle('hidden', val !== 'SERVIDOR');
     }
 
     async function salvarNovoUsuario(e) {
       e.preventDefault();
       const nome = document.getElementById('usr-nome').value.trim();
       const email = document.getElementById('usr-email').value.trim().toLowerCase();
+      const senha = document.getElementById('usr-senha').value;
       const papel = document.getElementById('usr-papel').value;
+      const btn = document.getElementById('btn-salvar-usuario');
+
+      const isSuper = usuarioAtual.papel === 'SUPER_ADMIN' || usuarioAtual.email?.toLowerCase() === 'joseandrade1406@gmail.com';
+      let prefId = isSuper ? document.getElementById('usr-prefeitura').value : prefeituraAtual.id;
+
+      if (!prefId || prefId === 'TODAS') {
+        if (listaTodasPrefeituras.length > 0) {
+          prefId = listaTodasPrefeituras[0].id;
+        } else {
+          alert('Por favor, selecione uma prefeitura válida.');
+          return;
+        }
+      }
+
       const secId = papel === 'SERVIDOR' ? document.getElementById('usr-secretaria').value : null;
 
+      btn.disabled = true;
+      btn.innerHTML = '<span class="animate-spin inline-block">⏳</span> Criando conta no Supabase Auth...';
+
       try {
-        // Insere registro no banco
-        const { error } = await sb.from('usuarios_prefeitura').insert([{
-          user_id: crypto.randomUUID(), // Temporário até o login do Auth
-          prefeitura_id: prefeituraAtual.id,
-          secretaria_id: secId,
-          nome,
-          email,
-          papel,
-          ativo: true
-        }]);
+        const { data, error } = await sb.rpc('cadastrar_novo_usuario_sistema', {
+          p_email: email,
+          p_senha: senha,
+          p_nome: nome,
+          p_prefeitura_id: prefId,
+          p_papel: papel,
+          p_secretaria_id: secId || null
+        });
 
         if (error) throw error;
 
+        // Sucesso! Guarda dados para copiar
+        const prefObj = listaTodasPrefeituras.find(p => p.id === prefId) || prefeituraAtual;
+        ultimoUsuarioCriado = {
+          nome,
+          email,
+          senha,
+          cidade: prefObj?.cidade || 'Município',
+          papel
+        };
+
         fecharModalNovoUsuario();
+
+        // Exibe modal de confirmação com credenciais e botão de copiar
+        document.getElementById('sucesso-usr-nome').innerText = nome;
+        document.getElementById('sucesso-usr-cidade').innerText = ultimoUsuarioCriado.cidade;
+        document.getElementById('sucesso-usr-papel').innerText = papel;
+        document.getElementById('sucesso-usr-email').innerText = email;
+        document.getElementById('sucesso-usr-senha').innerText = senha;
+        document.getElementById('btn-copiar-credenciais-txt').innerText = 'Copiar Dados de Acesso (WhatsApp / E-mail)';
+
+        document.getElementById('modal-sucesso-novo-usuario').classList.remove('hidden');
         await carregarEquipe();
-        alert(`Servidor ${nome} (${email}) adicionado com sucesso!`);
       } catch (err) {
-        console.error('Erro ao adicionar servidor:', err);
-        alert('Erro ao cadastrar servidor: ' + err.message);
+        console.error('Erro ao cadastrar servidor:', err);
+        alert('Erro ao cadastrar usuário: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Criar e Ativar Servidor ➔';
+      }
+    }
+
+    function fecharModalSucessoNovoUsuario() {
+      document.getElementById('modal-sucesso-novo-usuario').classList.add('hidden');
+    }
+
+    async function copiarDadosAcessoServidor() {
+      if (!ultimoUsuarioCriado) return;
+
+      const texto = `🏛️ *ConectaPrefeitura - Seu Acesso ao Painel Municipal*\n\n` +
+                    `Olá, *${ultimoUsuarioCriado.nome}*!\n` +
+                    `Seu acesso administrativo ao sistema de gestão foi liberado com sucesso:\n\n` +
+                    `🔗 *Link de Acesso:* https://gov-saas2-doqu.vercel.app/admin\n` +
+                    `📧 *E-mail de Login:* ${ultimoUsuarioCriado.email}\n` +
+                    `🔑 *Senha Provisória:* ${ultimoUsuarioCriado.senha}\n` +
+                    `🏛️ *Município:* ${ultimoUsuarioCriado.cidade}\n` +
+                    `🛡️ *Nível de Acesso:* ${ultimoUsuarioCriado.papel}\n\n` +
+                    `_Guarde sua senha com segurança. Em caso de dúvidas, procure o Administrador da sua Prefeitura._`;
+
+      try {
+        await navigator.clipboard.writeText(texto);
+        const btnTxt = document.getElementById('btn-copiar-credenciais-txt');
+        btnTxt.innerText = '✓ Dados Copiados com Sucesso!';
+        setTimeout(() => {
+          if (btnTxt) btnTxt.innerText = 'Copiar Dados de Acesso (WhatsApp / E-mail)';
+        }, 3000);
+      } catch (err) {
+        alert(texto);
       }
     }
 
@@ -2023,14 +2380,183 @@
       }
     }
 
-    // 11. NAVEGAÇÃO ENTRE AS ABAS DO PAINEL
+    async function excluirUsuarioAdmin(uid, nome) {
+      if (!confirm(`Tem certeza que deseja excluir permanentemente o servidor "${nome}"?\n\nO acesso ao painel será revogado e a conta será apagada do sistema.`)) {
+        return;
+      }
+
+      try {
+        const { error } = await sb.rpc('excluir_usuario_prefeitura', { p_user_id: uid });
+        if (error) throw error;
+        await carregarEquipe();
+        alert(`Servidor "${nome}" excluído com sucesso.`);
+      } catch (err) {
+        console.error('Erro ao excluir usuário:', err);
+        alert('Erro ao excluir usuário: ' + err.message);
+      }
+    }
+
+    // ==============================================================================
+    // 11. ABA PREFEITURAS (SUPER_ADMIN)
+    // ==============================================================================
+    async function carregarPrefeituras() {
+      const { data, error } = await sb.from('prefeituras').select('*').order('cidade');
+
+      if (!error && data) {
+        listaTodasPrefeituras = data;
+        renderizarGridPrefeituras(data);
+      }
+    }
+
+    function renderizarGridPrefeituras(lista) {
+      const container = document.getElementById('grid-prefeituras-container');
+      const lblTotal = document.getElementById('lbl-total-prefeituras');
+
+      if (lblTotal) lblTotal.innerText = lista.length;
+
+      if (!lista || lista.length === 0) {
+        container.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500 text-xs">Nenhum município cadastrado.</div>`;
+        return;
+      }
+
+      container.innerHTML = lista.map(p => `
+        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between space-y-3 hover:border-slate-700 transition shadow-sm">
+          <div class="flex items-start gap-3">
+            <img src="${p.brasao_url || 'https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=80'}" 
+                 class="w-11 h-11 rounded-xl object-cover bg-slate-900 border border-slate-800 flex-shrink-0"
+                 onerror="this.src='https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=80'">
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2">
+                <h4 class="text-xs font-bold text-white truncate">${p.cidade}</h4>
+                <span class="text-[9px] font-black px-1.5 py-0.2 rounded bg-blue-900/40 text-blue-300 border border-blue-800">${p.uf || 'ES'}</span>
+              </div>
+              <p class="text-[11px] text-slate-400 truncate mt-0.5">${p.nome || `Prefeitura Municipal de ${p.cidade}`}</p>
+              <p class="text-[10px] text-slate-500 font-mono mt-1">📍 ${p.lat && p.lng ? `${p.lat}, ${p.lng}` : 'GPS não informado'}</p>
+            </div>
+          </div>
+
+          <div class="pt-2 border-t border-slate-900 flex items-center justify-between gap-2">
+            <button onclick="acessarPrefeituraPeloPainel('${p.id}')" 
+                    class="flex-1 bg-blue-600/20 hover:bg-blue-600 border border-blue-500/40 hover:border-blue-500 text-blue-300 hover:text-white font-bold text-[11px] py-1.5 px-2.5 rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm">
+              <span>👁️</span> <span>Acessar Painel</span>
+            </button>
+            <button onclick="excluirPrefeituraAdmin('${p.id}', '${p.cidade.replace(/'/g, "\\'")}')" 
+                    class="bg-rose-950/40 hover:bg-rose-900 border border-rose-800/60 hover:border-rose-700 text-rose-300 hover:text-white font-bold text-[11px] py-1.5 px-2.5 rounded-xl transition flex items-center justify-center gap-1"
+                    title="Excluir prefeitura permanentemente">
+              <span>🗑️</span>
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function filtrarListaPrefeituras() {
+      const termo = (document.getElementById('filtro-busca-prefeituras')?.value || '').toLowerCase().trim();
+      if (!termo) {
+        renderizarGridPrefeituras(listaTodasPrefeituras);
+        return;
+      }
+      const filtradas = listaTodasPrefeituras.filter(p => 
+        (p.cidade && p.cidade.toLowerCase().includes(termo)) ||
+        (p.nome && p.nome.toLowerCase().includes(termo)) ||
+        (p.uf && p.uf.toLowerCase().includes(termo))
+      );
+      renderizarGridPrefeituras(filtradas);
+    }
+
+    function abrirModalNovaPrefeitura() {
+      document.getElementById('np-nome').value = '';
+      document.getElementById('np-cidade').value = '';
+      document.getElementById('np-uf').value = 'ES';
+      document.getElementById('np-lat').value = '';
+      document.getElementById('np-lng').value = '';
+      document.getElementById('np-brasao').value = '';
+      document.getElementById('np-semear').checked = true;
+      document.getElementById('modal-nova-prefeitura').classList.remove('hidden');
+    }
+
+    function fecharModalNovaPrefeitura() {
+      document.getElementById('modal-nova-prefeitura').classList.add('hidden');
+    }
+
+    async function salvarNovaPrefeitura(e) {
+      e.preventDefault();
+      const nome = document.getElementById('np-nome').value.trim();
+      const cidade = document.getElementById('np-cidade').value.trim();
+      const uf = document.getElementById('np-uf').value.trim().toUpperCase();
+      const lat = document.getElementById('np-lat').value;
+      const lng = document.getElementById('np-lng').value;
+      const brasao = document.getElementById('np-brasao').value.trim();
+      const semear = document.getElementById('np-semear').checked;
+      const btn = document.getElementById('btn-salvar-nova-pref');
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="animate-spin inline-block">⏳</span> Criando e estruturando município...';
+
+      try {
+        const { data, error } = await sb.rpc('cadastrar_prefeitura_completa', {
+          p_nome: nome,
+          p_cidade: cidade,
+          p_uf: uf,
+          p_lat: lat ? parseFloat(lat) : null,
+          p_lng: lng ? parseFloat(lng) : null,
+          p_brasao_url: brasao || null,
+          p_semear: semear
+        });
+
+        if (error) throw error;
+
+        fecharModalNovaPrefeitura();
+        await carregarPrefeituras();
+        await carregarSeletorSuperAdmin();
+        alert(`Prefeitura de ${cidade} cadastrada com sucesso! ${semear ? 'Secretarias e 17 serviços padrão foram instalados.' : ''}`);
+      } catch (err) {
+        console.error('Erro ao cadastrar prefeitura:', err);
+        alert('Erro ao cadastrar prefeitura: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Cadastrar e Estruturar Município ➔';
+      }
+    }
+
+    async function excluirPrefeituraAdmin(prefId, prefNome) {
+      if (!confirm(`Tem certeza absoluta que deseja EXCLUIR a Prefeitura de "${prefNome}"?\n\n⚠️ ATENÇÃO: Todos os chamados, secretarias, serviços e servidores vinculados a este município serão apagados permanentemente!`)) {
+        return;
+      }
+
+      try {
+        const { error } = await sb.rpc('excluir_prefeitura_completa', { p_prefeitura_id: prefId });
+        if (error) throw error;
+
+        if (prefeituraAtual && prefeituraAtual.id === prefId) {
+          await trocarPrefeituraSuperAdmin('TODAS');
+        }
+
+        await carregarPrefeituras();
+        await carregarSeletorSuperAdmin();
+        alert(`Prefeitura de ${prefNome} excluída com sucesso.`);
+      } catch (err) {
+        console.error('Erro ao excluir prefeitura:', err);
+        alert('Erro ao excluir prefeitura: ' + err.message);
+      }
+    }
+
+    async function acessarPrefeituraPeloPainel(prefId) {
+      await trocarPrefeituraSuperAdmin(prefId);
+      navegarAba('chamados');
+    }
+
+    // ==============================================================================
+    // 12. NAVEGAÇÃO ENTRE AS ABAS DO PAINEL
+    // ==============================================================================
     function navegarAba(aba) {
       document.getElementById('conteudo-chamados').classList.toggle('hidden', aba !== 'chamados');
       document.getElementById('conteudo-indicadores').classList.toggle('hidden', aba !== 'indicadores');
       document.getElementById('conteudo-servicos').classList.toggle('hidden', aba !== 'servicos');
       document.getElementById('conteudo-equipe').classList.toggle('hidden', aba !== 'equipe');
+      document.getElementById('conteudo-prefeituras').classList.toggle('hidden', aba !== 'prefeituras');
 
-      const abas = ['chamados', 'indicadores', 'servicos', 'equipe'];
+      const abas = ['chamados', 'indicadores', 'servicos', 'equipe', 'prefeituras'];
       abas.forEach(a => {
         const btn = document.getElementById(`aba-btn-${a}`);
         if (!btn) return;
@@ -2045,6 +2571,8 @@
         atualizarIndicadores();
       } else if (aba === 'equipe') {
         carregarEquipe();
+      } else if (aba === 'prefeituras') {
+        carregarPrefeituras();
       }
     }
   </script>
