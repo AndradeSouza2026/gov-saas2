@@ -790,18 +790,30 @@
       const sel = document.getElementById('superadmin-select-prefeitura');
       if (!sel) return;
 
-      sel.innerHTML = listaTodasPrefeituras.map(p => `
-        <option value="${p.id}" ${p.id === prefeituraAtual.id ? 'selected' : ''} class="bg-slate-900 text-white font-medium">
-          ${p.cidade} (${p.uf || 'ES'})
+      let html = `<option value="TODAS" ${prefeituraAtual?.id === 'TODAS' ? 'selected' : ''}>🌐 Todas as 27 Cidades (Visão Geral Multi-Prefeituras)</option>`;
+      html += listaTodasPrefeituras.map(p => `
+        <option value="${p.id}" ${p.id === prefeituraAtual?.id ? 'selected' : ''} class="bg-slate-900 text-white font-medium">
+          🏛️ ${p.cidade} (${p.uf || 'ES'})
         </option>
       `).join('');
+
+      sel.innerHTML = html;
     }
 
     async function trocarPrefeituraSuperAdmin(prefId) {
-      const novaPref = listaTodasPrefeituras.find(p => p.id === prefId);
-      if (!novaPref) return;
+      if (prefId === 'TODAS') {
+        prefeituraAtual = {
+          id: 'TODAS',
+          nome: 'ConectaPrefeitura - Todas as 27 Cidades',
+          cidade: 'Todas as Cidades do Sul do ES',
+          brasao_url: 'https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=120'
+        };
+      } else {
+        const novaPref = listaTodasPrefeituras.find(p => p.id === prefId);
+        if (!novaPref) return;
+        prefeituraAtual = novaPref;
+      }
 
-      prefeituraAtual = novaPref;
       document.querySelectorAll('.cidade-nome-txt').forEach(el => el.innerText = prefeituraAtual.cidade);
       document.getElementById('admin-pref-nome').innerText = prefeituraAtual.nome || `Prefeitura de ${prefeituraAtual.cidade}`;
       document.getElementById('admin-brasao-img').src = prefeituraAtual.brasao_url || 'https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=80';
@@ -885,21 +897,18 @@
       const lblSetor = document.getElementById('admin-usuario-setor');
       const blocoSuper = document.getElementById('bloco-superadmin-cidades');
 
-      const isSuperAdmin = usuarioAtual.papel === 'SUPER_ADMIN' || usuarioAtual.email?.toLowerCase() === 'joseandrade1406@gmail.com';
+      const isSuperAdmin = usuarioAtual.papel === 'SUPER_ADMIN' 
+        || usuarioAtual.papel === 'ADMIN'
+        || usuarioAtual.email?.toLowerCase() === 'joseandrade1406@gmail.com'
+        || usuarioAtual.email?.toLowerCase() === 'admin@prefeitura.gov.br';
 
       if (isSuperAdmin) {
         blocoSuper.classList.remove('hidden');
-        badgePapel.innerText = '👑 SUPER ADMIN';
+        badgePapel.innerText = usuarioAtual.papel === 'SUPER_ADMIN' || usuarioAtual.email?.toLowerCase() === 'joseandrade1406@gmail.com' ? '👑 SUPER ADMIN' : 'ADMIN';
         badgePapel.className = 'text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40';
-        lblSetor.innerText = '👑 Painel Global Multi-Prefeituras';
+        lblSetor.innerText = '🏛️ Gestão Municipal (Seletor Ativo)';
         document.getElementById('aba-btn-equipe').classList.remove('hidden');
         await carregarSeletorSuperAdmin();
-      } else if (usuarioAtual.papel === 'ADMIN') {
-        blocoSuper.classList.add('hidden');
-        badgePapel.innerText = 'ADMIN';
-        badgePapel.className = 'text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-blue-900/60 text-blue-300 border border-blue-700/60';
-        lblSetor.innerText = '🏛️ Gabinete Geral (Visão Total)';
-        document.getElementById('aba-btn-equipe').classList.remove('hidden');
       } else {
         blocoSuper.classList.add('hidden');
         const secNome = usuarioAtual.secretarias?.sigla || 'Setorial';
@@ -924,11 +933,11 @@
     }
 
     async function carregarSecretarias() {
-      const { data, error } = await sb
-        .from('secretarias')
-        .select('*')
-        .eq('prefeitura_id', prefeituraAtual.id)
-        .order('nome');
+      let query = sb.from('secretarias').select('*').order('nome');
+      if (prefeituraAtual && prefeituraAtual.id !== 'TODAS') {
+        query = query.eq('prefeitura_id', prefeituraAtual.id);
+      }
+      const { data, error } = await query;
 
       if (!error && data) {
         secretarias = data;
@@ -961,11 +970,11 @@
     }
 
     async function carregarServicos() {
-      const { data, error } = await sb
-        .from('catalogo_servicos')
-        .select('*, secretarias(nome, sigla, icone)')
-        .eq('prefeitura_id', prefeituraAtual.id)
-        .order('nome');
+      let query = sb.from('catalogo_servicos').select('*, secretarias(nome, sigla, icone)').order('nome');
+      if (prefeituraAtual && prefeituraAtual.id !== 'TODAS') {
+        query = query.eq('prefeitura_id', prefeituraAtual.id);
+      }
+      const { data, error } = await query;
 
       if (!error && data) {
         servicos = data;
@@ -976,9 +985,12 @@
     async function carregarChamados() {
       let query = sb
         .from('solicitacoes')
-        .select('*, secretarias(nome, sigla, icone)')
-        .eq('prefeitura_id', prefeituraAtual.id)
+        .select('*, prefeituras(cidade, nome), secretarias(nome, sigla, icone)')
         .order('created_at', { ascending: false });
+
+      if (prefeituraAtual && prefeituraAtual.id !== 'TODAS') {
+        query = query.eq('prefeitura_id', prefeituraAtual.id);
+      }
 
       if (usuarioAtual.papel === 'SERVIDOR' && usuarioAtual.secretaria_id) {
         query = query.or(`secretaria_id.eq.${usuarioAtual.secretaria_id},secretaria_id.is.null`);
@@ -994,10 +1006,14 @@
     function iniciarRealtime() {
       if (canalRealtime) sb.removeChannel(canalRealtime);
 
+      const filterObj = (prefeituraAtual && prefeituraAtual.id !== 'TODAS')
+        ? { event: '*', schema: 'public', table: 'solicitacoes', filter: `prefeitura_id=eq.${prefeituraAtual.id}` }
+        : { event: '*', schema: 'public', table: 'solicitacoes' };
+
       canalRealtime = sb.channel('painel-chamados-realtime')
         .on(
           'postgres_changes',
-          { event: '*', schema: 'public', table: 'solicitacoes', filter: `prefeitura_id=eq.${prefeituraAtual.id}` },
+          filterObj,
           async (payload) => {
             console.log('⚡ Atualização Realtime recebida:', payload.eventType);
             await carregarChamados();
@@ -1133,6 +1149,9 @@
             <div class="flex flex-wrap items-center justify-between gap-2">
               <div class="flex flex-wrap items-center gap-2">
                 <span class="text-xs font-black bg-slate-800 text-blue-400 px-2.5 py-1 rounded-lg border border-slate-700">#${sol.protocolo}</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-indigo-950/80 text-indigo-300 border border-indigo-700/50 flex items-center gap-1">
+                  🏛️ ${sol.prefeituras?.cidade || (listaTodasPrefeituras.find(p => p.id === sol.prefeitura_id)?.cidade) || 'Município'}
+                </span>
                 <span class="text-xs font-bold text-white flex items-center gap-1">
                   <span>${sol.servico_icone || '📌'}</span> <span>${sol.servico_nome}</span>
                 </span>

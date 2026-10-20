@@ -21,6 +21,33 @@ UPDATE public.usuarios_prefeitura
 SET papel = 'SUPER_ADMIN' 
 WHERE email = 'joseandrade1406@gmail.com';
 
+-- Garante que administradores possam visualizar e alternar entre prefeituras no RLS
+DROP POLICY IF EXISTS "solicitacoes_servidores_select" ON public.solicitacoes;
+CREATE POLICY "solicitacoes_servidores_select" 
+ON public.solicitacoes FOR SELECT 
+TO authenticated 
+USING (
+    public.meu_papel() IN ('ADMIN', 'SUPER_ADMIN')
+    OR (auth.jwt()->>'email' IN ('admin@prefeitura.gov.br', 'joseandrade1406@gmail.com'))
+    OR (
+        prefeitura_id::text = public.minha_prefeitura_id()::text 
+        AND (secretaria_id::text = public.minha_secretaria_id()::text OR secretaria_id IS NULL)
+    )
+);
+
+DROP POLICY IF EXISTS "solicitacoes_servidores_update" ON public.solicitacoes;
+CREATE POLICY "solicitacoes_servidores_update" 
+ON public.solicitacoes FOR UPDATE 
+TO authenticated 
+USING (
+    public.meu_papel() IN ('ADMIN', 'SUPER_ADMIN')
+    OR (auth.jwt()->>'email' IN ('admin@prefeitura.gov.br', 'joseandrade1406@gmail.com'))
+    OR (
+        prefeitura_id::text = public.minha_prefeitura_id()::text 
+        AND (secretaria_id::text = public.minha_secretaria_id()::text OR secretaria_id IS NULL)
+    )
+);
+
 -- 2. Função RPC para Confirmar Agendamento
 CREATE OR REPLACE FUNCTION public.confirmar_agendamento(
     p_solicitacao_id UUID,
