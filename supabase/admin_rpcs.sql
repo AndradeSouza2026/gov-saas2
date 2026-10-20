@@ -11,6 +11,16 @@ ALTER TABLE public.solicitacoes ADD COLUMN IF NOT EXISTS observacao_conclusao TE
 ALTER TABLE public.solicitacoes ADD COLUMN IF NOT EXISTS resposta_prefeitura TEXT;
 ALTER TABLE public.solicitacoes ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
 
+-- Suporte a SUPER_ADMIN na tabela de usuários da prefeitura
+DO $$ BEGIN
+    ALTER TABLE public.usuarios_prefeitura DROP CONSTRAINT IF EXISTS usuarios_prefeitura_papel_check;
+    ALTER TABLE public.usuarios_prefeitura ADD CONSTRAINT usuarios_prefeitura_papel_check CHECK (papel IN ('ADMIN', 'SERVIDOR', 'SUPER_ADMIN'));
+EXCEPTION WHEN OTHERS THEN NULL; END $$;
+
+UPDATE public.usuarios_prefeitura 
+SET papel = 'SUPER_ADMIN' 
+WHERE email = 'joseandrade1406@gmail.com';
+
 -- 2. Função RPC para Confirmar Agendamento
 CREATE OR REPLACE FUNCTION public.confirmar_agendamento(
     p_solicitacao_id UUID,

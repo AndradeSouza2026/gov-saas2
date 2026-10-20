@@ -80,6 +80,18 @@
           </div>
         </div>
 
+        <!-- Seletor Multi-Cidades (Exclusivo para SUPER_ADMIN) -->
+        <div id="bloco-superadmin-cidades" class="hidden flex items-center gap-2 bg-slate-950 border border-amber-500/40 px-3 py-1.5 rounded-2xl shadow-inner">
+          <span class="text-base">👑</span>
+          <div>
+            <label class="block text-[9px] font-black text-amber-400 uppercase tracking-wider">Super Admin • Mudar Município:</label>
+            <select id="superadmin-select-prefeitura" onchange="trocarPrefeituraSuperAdmin(this.value)" 
+                    class="bg-transparent text-white text-xs font-bold outline-none cursor-pointer">
+              <!-- As 27 cidades serão preenchidas dinamicamente -->
+            </select>
+          </div>
+        </div>
+
         <!-- Ações do Servidor -->
         <div class="flex items-center gap-3">
           <div class="text-right hidden sm:block">
@@ -765,19 +777,66 @@
       }
     }
 
+    let listaTodasPrefeituras = [];
+
+    async function carregarSeletorSuperAdmin() {
+      if (listaTodasPrefeituras.length === 0) {
+        const { data } = await sb.from('prefeituras').select('*').order('cidade');
+        if (data && data.length > 0) {
+          listaTodasPrefeituras = data;
+        }
+      }
+
+      const sel = document.getElementById('superadmin-select-prefeitura');
+      if (!sel) return;
+
+      sel.innerHTML = listaTodasPrefeituras.map(p => `
+        <option value="${p.id}" ${p.id === prefeituraAtual.id ? 'selected' : ''} class="bg-slate-900 text-white font-medium">
+          ${p.cidade} (${p.uf || 'ES'})
+        </option>
+      `).join('');
+    }
+
+    async function trocarPrefeituraSuperAdmin(prefId) {
+      const novaPref = listaTodasPrefeituras.find(p => p.id === prefId);
+      if (!novaPref) return;
+
+      prefeituraAtual = novaPref;
+      document.querySelectorAll('.cidade-nome-txt').forEach(el => el.innerText = prefeituraAtual.cidade);
+      document.getElementById('admin-pref-nome').innerText = prefeituraAtual.nome || `Prefeitura de ${prefeituraAtual.cidade}`;
+      document.getElementById('admin-brasao-img').src = prefeituraAtual.brasao_url || 'https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=80';
+
+      await carregarTudo();
+      iniciarRealtime();
+    }
+
     async function verificarAcessoServidor(session) {
       sessaoAtual = session;
       const userId = session.user.id;
+      const userEmail = (session.user.email || '').toLowerCase();
 
       try {
-        const { data: usr, error } = await sb
+        let { data: usr, error } = await sb
           .from('usuarios_prefeitura')
           .select('*, prefeituras(*), secretarias(*)')
           .eq('user_id', userId)
           .eq('ativo', true)
-          .single();
+          .maybeSingle();
 
-        if (error || !usr || !usr.prefeituras) {
+        // Se for o dono do sistema (joseandrade1406@gmail.com), garante acesso como SUPER_ADMIN
+        if ((!usr || !usr.prefeituras) && userEmail === 'joseandrade1406@gmail.com') {
+          const { data: prefPadrao } = await sb.from('prefeituras').select('*').order('cidade').limit(1).single();
+          usr = {
+            user_id: userId,
+            nome: 'José Andrade',
+            email: userEmail,
+            papel: 'SUPER_ADMIN',
+            ativo: true,
+            prefeituras: prefPadrao
+          };
+        }
+
+        if (!usr || !usr.prefeituras) {
           // Não autorizado ou desativado
           await sb.auth.signOut();
           const erroBox = document.getElementById('login-erro');
@@ -787,9 +846,13 @@
           return;
         }
 
+        if (userEmail === 'joseandrade1406@gmail.com') {
+          usr.papel = 'SUPER_ADMIN';
+        }
+
         usuarioAtual = usr;
         prefeituraAtual = usr.prefeituras;
-        configurarInterfaceLogado();
+        await configurarInterfaceLogado();
         await carregarTudo();
         iniciarRealtime();
       } catch (err) {
@@ -809,7 +872,7 @@
     }
 
     // 2. CONFIGURAÇÃO DA INTERFACE DO SERVIDOR
-    function configurarInterfaceLogado() {
+    async function configurarInterfaceLogado() {
       document.getElementById('tela-login').classList.add('hidden');
       document.getElementById('painel-principal').classList.remove('hidden');
 
@@ -819,17 +882,31 @@
       document.getElementById('admin-user-nome').innerText = usuarioAtual.nome || sessaoAtual.user.email;
 
       const badgePapel = document.getElementById('admin-user-badge-papel');
-      badgePapel.innerText = usuarioAtual.papel;
-
       const lblSetor = document.getElementById('admin-usuario-setor');
-      if (usuarioAtual.papel === 'ADMIN') {
+      const blocoSuper = document.getElementById('bloco-superadmin-cidades');
+
+      const isSuperAdmin = usuarioAtual.papel === 'SUPER_ADMIN' || usuarioAtual.email?.toLowerCase() === 'joseandrade1406@gmail.com';
+
+      if (isSuperAdmin) {
+        blocoSuper.classList.remove('hidden');
+        badgePapel.innerText = '👑 SUPER ADMIN';
+        badgePapel.className = 'text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40';
+        lblSetor.innerText = '👑 Painel Global Multi-Prefeituras';
+        document.getElementById('aba-btn-equipe').classList.remove('hidden');
+        await carregarSeletorSuperAdmin();
+      } else if (usuarioAtual.papel === 'ADMIN') {
+        blocoSuper.classList.add('hidden');
+        badgePapel.innerText = 'ADMIN';
+        badgePapel.className = 'text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-blue-900/60 text-blue-300 border border-blue-700/60';
         lblSetor.innerText = '🏛️ Gabinete Geral (Visão Total)';
         document.getElementById('aba-btn-equipe').classList.remove('hidden');
       } else {
+        blocoSuper.classList.add('hidden');
         const secNome = usuarioAtual.secretarias?.sigla || 'Setorial';
         lblSetor.innerText = `🏢 ${usuarioAtual.secretarias?.nome || secNome}`;
+        badgePapel.innerText = 'SERVIDOR';
+        badgePapel.className = 'text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700';
         document.getElementById('aba-btn-equipe').classList.add('hidden');
-        // Fixa a secretaria no filtro
         filtroSecretariaAtual = usuarioAtual.secretaria_id;
         document.getElementById('filtro-select-secretaria').disabled = true;
       }
