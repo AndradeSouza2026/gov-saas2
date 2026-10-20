@@ -108,6 +108,56 @@ GRANT EXECUTE ON FUNCTION public.confirmar_agendamento(UUID, TIMESTAMPTZ, TEXT, 
 GRANT EXECUTE ON FUNCTION public.concluir_solicitacao(UUID, TEXT) TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.cancelar_solicitacao(UUID, TEXT) TO authenticated, anon;
 
--- 6. Notifica o PostgREST para recarregar o cache de schema imediatamente
+-- 6. Função Utilitária para Vincular Servidor a uma Cidade de forma segura e amigável
+CREATE OR REPLACE FUNCTION public.vincular_servidor(
+    p_email TEXT,
+    p_cidade TEXT,
+    p_nome TEXT,
+    p_papel TEXT DEFAULT 'ADMIN'
+)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_user_id UUID;
+    v_pref_id UUID;
+    v_cidade_oficial TEXT;
+BEGIN
+    -- 1. Busca o usuário no Auth pelo e-mail
+    SELECT id INTO v_user_id FROM auth.users WHERE lower(email) = lower(trim(p_email)) LIMIT 1;
+    
+    IF v_user_id IS NULL THEN
+        RAISE EXCEPTION 'O e-mail "%" ainda não foi cadastrado no Auth! Crie o usuário primeiro em Authentication > Users > Add user no Supabase.', p_email;
+    END IF;
+
+    -- 2. Busca a prefeitura pelo nome da cidade (busca aproximada sem case-sensitive)
+    SELECT id, cidade INTO v_pref_id, v_cidade_oficial 
+    FROM public.prefeituras 
+    WHERE lower(cidade) ILIKE '%' || lower(trim(p_cidade)) || '%' 
+    LIMIT 1;
+    
+    IF v_pref_id IS NULL THEN
+        RAISE EXCEPTION 'Município com o termo "%" não foi encontrado na tabela prefeituras.', p_cidade;
+    END IF;
+
+    -- 3. Insere ou atualiza o vínculo com a prefeitura
+    INSERT INTO public.usuarios_prefeitura (user_id, prefeitura_id, nome, email, papel, ativo)
+    VALUES (v_user_id, v_pref_id, p_nome, p_email, upper(trim(p_papel)), true)
+    ON CONFLICT (user_id) DO UPDATE SET
+        prefeitura_id = EXCLUDED.prefeitura_id,
+        nome = EXCLUDED.nome,
+        email = EXCLUDED.email,
+        papel = EXCLUDED.papel,
+        ativo = true;
+
+    RETURN '✅ Sucesso! O usuário ' || p_email || ' (' || p_nome || ') foi vinculado como ' || upper(trim(p_papel)) || ' de ' || v_cidade_oficial || '!';
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.vincular_servidor(TEXT, TEXT, TEXT, TEXT) TO authenticated, service_role;
+
+-- 7. Notifica o PostgREST para recarregar o cache de schema imediatamente
 NOTIFY pgrst, 'reload schema';
 
