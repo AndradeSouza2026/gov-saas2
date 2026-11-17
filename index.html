@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ConectaPrefeitura SaaS - Sul do Espírito Santo (ES)</title>
+  <title>ConectaPrefeitura SaaS - Atendimento Municipal Digital</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2226%22 font-size=%2224%22>🏛️</text></svg>">
   
   <!-- Tailwind CSS CDN -->
@@ -52,25 +52,29 @@
   <header class="bg-slate-900 text-white sticky top-0 z-50 shadow-md">
     <div class="max-w-7xl mx-auto px-4 py-2.5 flex flex-wrap justify-between items-center gap-3">
       
-      <!-- Logo e Seletor com Seta no Topo -->
-      <div class="flex items-center gap-3">
+      <!-- Logo e Seletor por Estado e Cidade no Topo -->
+      <div class="flex flex-wrap items-center gap-3">
         <div class="flex items-center gap-2">
           <span class="text-2xl">🏛️</span>
           <div>
             <h1 class="font-black text-lg leading-tight tracking-tight">ConectaPrefeitura <span class="text-blue-400 font-semibold text-xs px-2 py-0.5 bg-blue-950 rounded border border-blue-800">SaaS Gov</span></h1>
-            <p class="text-[10px] text-slate-400">Polo Sul do Espírito Santo (ES)</p>
+            <p id="header-subtitulo-regiao" class="text-[10px] text-slate-400">Plataforma Nacional • Gestão Municipal</p>
           </div>
         </div>
 
-        <!-- SELETOR DE CIDADES DO SUL DO ES COM SETA -->
+        <!-- SELETOR SEPARADO POR ESTADO (UF) E CIDADE COM SETA -->
         <div class="flex items-center gap-2 bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700 px-3 py-1.5 rounded-xl transition shadow-inner">
-          <img id="header-brasao-img" src="https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=50" alt="Brasão" class="w-6 h-6 rounded-full object-cover border border-slate-500 shadow-sm">
-          <div class="flex flex-col">
-            <span class="text-[9px] text-blue-300 font-bold uppercase tracking-wider flex items-center gap-1">
-              <span>📍 Sul do ES</span>
-            </span>
+          <img id="header-brasao-img" src="https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=50" alt="Brasão" class="w-6 h-6 rounded-full object-cover border border-slate-500 shadow-sm shrink-0">
+          <div class="flex flex-col border-r border-slate-700 pr-2.5">
+            <span class="text-[9px] text-blue-300 font-bold uppercase tracking-wider">🗺️ Estado</span>
+            <select id="select-estado-topo" onchange="aoTrocarEstado(this.value)" class="select-seta bg-transparent text-xs font-black text-white outline-none cursor-pointer">
+              <!-- Preenchido dinamicamente por UF -->
+            </select>
+          </div>
+          <div class="flex flex-col pl-0.5">
+            <span class="text-[9px] text-blue-300 font-bold uppercase tracking-wider">📍 Município</span>
             <select id="select-cidade-topo" onchange="aoTrocarCidade(this.value)" class="select-seta bg-transparent text-xs font-black text-white outline-none cursor-pointer">
-              <!-- Preenchido via Javascript com todas as 27 cidades do Sul do ES -->
+              <!-- Preenchido via Javascript apenas com cidades do estado selecionado -->
             </select>
           </div>
         </div>
@@ -104,7 +108,7 @@
           <div class="flex items-center gap-3">
             <img id="app-brasao-img" src="" alt="Brasão" class="w-12 h-12 rounded-2xl object-cover bg-white/20 p-1 border border-white/30 shadow-md">
             <div>
-              <p class="text-[10px] font-bold uppercase tracking-wider text-blue-200">SUL DO ESPÍRITO SANTO</p>
+              <p id="app-estado-subtitulo" class="text-[10px] font-bold uppercase tracking-wider text-blue-200">ESPÍRITO SANTO • ES</p>
               <h2 class="text-base font-extrabold leading-tight" id="app-prefeitura-nome">Prefeitura Municipal</h2>
             </div>
           </div>
@@ -113,13 +117,21 @@
           </span>
         </div>
 
-        <!-- SELETOR DE CIDADE COM SETA DENTRO DO APP DO CIDADÃO -->
-        <div class="mt-3.5 bg-white/10 p-2.5 rounded-2xl border border-white/20 backdrop-blur-sm">
-          <label class="block text-[10px] font-bold text-blue-200 mb-1">Selecione seu Município (Clique na seta):</label>
-          <div class="relative">
-            <select id="select-cidade-app" onchange="aoTrocarCidade(this.value)" class="select-seta w-full bg-blue-900/90 text-white text-xs font-bold rounded-xl px-3 py-2 border border-blue-400 outline-none cursor-pointer shadow-sm">
-              <!-- Opções de todas as cidades do Sul do ES com seta -->
-            </select>
+        <!-- DIVISÃO POR ESTADOS (ABAS DE UF) + SELETOR DE MUNICÍPIO -->
+        <div class="mt-3.5 bg-white/10 p-2.5 rounded-2xl border border-white/20 backdrop-blur-sm space-y-2">
+          <div>
+            <label class="block text-[10px] font-bold text-blue-200 mb-1.5">1. Escolha o Estado (UF):</label>
+            <div id="abas-estados-app" class="flex gap-1.5 overflow-x-auto pb-1">
+              <!-- Abas de estado (ES, MA, RJ, SP...) geradas dinamicamente -->
+            </div>
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-blue-200 mb-1">2. Selecione seu Município (<span id="lbl-estado-ativo-app">ES</span>):</label>
+            <div class="relative">
+              <select id="select-cidade-app" onchange="aoTrocarCidade(this.value)" class="select-seta w-full bg-blue-900/90 text-white text-xs font-bold rounded-xl px-3 py-2 border border-blue-400 outline-none cursor-pointer shadow-sm">
+                <!-- Opções filtradas apenas pelo estado selecionado -->
+              </select>
+            </div>
           </div>
         </div>
 
@@ -392,9 +404,15 @@
           </div>
         </div>
 
-        <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Cidade onde você mora (Sul do ES) *</label>
-          <select id="auth-cid-cidade" class="select-seta-dark w-full p-2.5 text-xs border rounded-xl bg-white outline-none cursor-pointer"></select>
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Estado *</label>
+            <select id="auth-cid-estado" onchange="aoTrocarEstadoModal(this.value)" class="select-seta-dark w-full p-2.5 text-xs border rounded-xl bg-white outline-none cursor-pointer font-bold"></select>
+          </div>
+          <div class="col-span-2">
+            <label class="block text-xs font-bold text-slate-700 mb-1">Cidade onde você mora *</label>
+            <select id="auth-cid-cidade" class="select-seta-dark w-full p-2.5 text-xs border rounded-xl bg-white outline-none cursor-pointer"></select>
+          </div>
         </div>
 
         <div>
@@ -497,8 +515,34 @@
       { id: 'srv-16', categoria: 'SOCIAL', secretaria_sigla: 'SEMDS', secretaria_nome: 'Secretaria de Desenvolvimento Social e Habitação', nome: 'Programas Habitacionais e Moradia Popular', icone: '🏡', tipo_fluxo: 'DOCUMENTACAO', exige_unidade_saude: false, exige_endereco: true, exige_cartao_sus: false, prazo_estimado_dias: 10 }
     ];
 
+    const ESTADOS_BRASIL = {
+      AC: 'Acre', AL: 'Alagoas', AP: 'Amapá', AM: 'Amazonas', BA: 'Bahia',
+      CE: 'Ceará', DF: 'Distrito Federal', ES: 'Espírito Santo', GO: 'Goiás',
+      MA: 'Maranhão', MT: 'Mato Grosso', MS: 'Mato Grosso do Sul', MG: 'Minas Gerais',
+      PA: 'Pará', PB: 'Paraíba', PR: 'Paraná', PE: 'Pernambuco', PI: 'Piauí',
+      RJ: 'Rio de Janeiro', RN: 'Rio Grande do Norte', RS: 'Rio Grande do Sul',
+      RO: 'Rondônia', RR: 'Roraima', SC: 'Santa Catarina', SP: 'São Paulo',
+      SE: 'Sergipe', TO: 'Tocantins'
+    };
+
+    function obterNomeEstado(uf) {
+      const sigla = (uf || 'ES').trim().toUpperCase();
+      return ESTADOS_BRASIL[sigla] || sigla;
+    }
+
+    function obterEstadosDisponiveis() {
+      const mapa = {};
+      prefeituras.forEach(p => {
+        const uf = (p.uf || 'ES').trim().toUpperCase();
+        if (!mapa[uf]) mapa[uf] = { uf, nome: obterNomeEstado(uf), count: 0 };
+        mapa[uf].count++;
+      });
+      return Object.values(mapa).sort((a, b) => a.uf.localeCompare(b.uf));
+    }
+
     let prefeituras = CIDADES_SUL_ES;
     let prefeituraAtual = CIDADES_SUL_ES[0];
+    let estadoAtual = (prefeituraAtual.uf || 'ES').trim().toUpperCase();
     let servicos = SERVICOS_BASE;
     let cidadaoLogado = null;
     let categoriaAtiva = 'TODOS';
@@ -514,49 +558,162 @@
       const savedCidadeId = localStorage.getItem('conecta_cidade_id');
       if (savedCidadeId) {
         const achada = prefeituras.find(p => p.id === savedCidadeId);
-        if (achada) prefeituraAtual = achada;
+        if (achada) {
+          prefeituraAtual = achada;
+          estadoAtual = (achada.uf || 'ES').trim().toUpperCase();
+        }
       }
       preencherSelectsCidades();
       await carregarCidadesDoBanco();
       renderizarTudo();
     };
 
-    // 3. SELETOR DE CIDADES DO SUL DO ES COM SETA
+    // 3. SELETOR DE CIDADES SEPARADO POR ESTADO (UF)
     function preencherSelectsCidades() {
-      const optionsHtml = prefeituras.map(p => `
-        <option value="${p.id}" ${p.id === prefeituraAtual.id ? 'selected' : ''}>
+      const estados = obterEstadosDisponiveis();
+      if (!estados.some(e => e.uf === estadoAtual) && estados.length > 0) {
+        estadoAtual = estados[0].uf;
+      }
+
+      // Garante que prefeituraAtual pertence ao estadoAtual
+      const cidadesDoEstado = prefeituras
+        .filter(p => (p.uf || 'ES').trim().toUpperCase() === estadoAtual)
+        .sort((a, b) => a.cidade.localeCompare(b.cidade));
+
+      if (cidadesDoEstado.length > 0 && !cidadesDoEstado.some(p => p.id === prefeituraAtual.id)) {
+        prefeituraAtual = cidadesDoEstado[0];
+      }
+
+      // 3.1. Abas clicáveis por Estado dentro do App do Cidadão
+      const abasEstadosApp = document.getElementById('abas-estados-app');
+      if (abasEstadosApp) {
+        abasEstadosApp.innerHTML = estados.map(est => {
+          const ativo = est.uf === estadoAtual;
+          return `
+            <button type="button" onclick="aoTrocarEstado('${est.uf}')"
+                    class="px-2.5 py-1.5 rounded-xl text-[11px] font-bold whitespace-nowrap transition flex items-center gap-1.5 shrink-0 ${
+                      ativo
+                        ? 'bg-white text-blue-900 shadow-md'
+                        : 'bg-blue-950/60 text-blue-100 hover:bg-blue-900/80 border border-blue-400/30'
+                    }">
+              <span>${est.uf}</span>
+              <span class="text-[9px] px-1.5 py-0.2 rounded-full ${ativo ? 'bg-blue-100 text-blue-800' : 'bg-white/10 text-blue-200'}">${est.count}</span>
+            </button>
+          `;
+        }).join('');
+      }
+
+      // 3.2. Selects de Estado (Header e Modal)
+      const optionsEstadosTopo = estados.map(est => `
+        <option value="${est.uf}" ${est.uf === estadoAtual ? 'selected' : ''} class="bg-slate-900 text-white">
+          ${est.uf} - ${est.nome} (${est.count})
+        </option>
+      `).join('');
+      const selEstadoTopo = document.getElementById('select-estado-topo');
+      if (selEstadoTopo) selEstadoTopo.innerHTML = optionsEstadosTopo;
+
+      const optionsEstadosModal = estados.map(est => `
+        <option value="${est.uf}" ${est.uf === estadoAtual ? 'selected' : ''}>
+          ${est.uf} (${est.count})
+        </option>
+      `).join('');
+      const selEstadoModal = document.getElementById('auth-cid-estado');
+      if (selEstadoModal) selEstadoModal.innerHTML = optionsEstadosModal;
+
+      // 3.3. Selects de Cidade (apenas cidades do estadoAtual)
+      const optionsCidades = cidadesDoEstado.map(p => `
+        <option value="${p.id}" ${p.id === prefeituraAtual.id ? 'selected' : ''} class="bg-slate-900 text-white">
           ${p.cidade} - ${p.uf}
         </option>
       `).join('');
 
-      document.querySelectorAll('#select-cidade-topo, #select-cidade-app, #auth-cid-cidade')
-        .forEach(sel => { if (sel) sel.innerHTML = optionsHtml; });
+      const selCidadeTopo = document.getElementById('select-cidade-topo');
+      if (selCidadeTopo) selCidadeTopo.innerHTML = optionsCidades;
 
+      const selCidadeApp = document.getElementById('select-cidade-app');
+      if (selCidadeApp) selCidadeApp.innerHTML = optionsCidades;
+
+      preencherCidadesDoModal(estadoAtual, prefeituraAtual.id);
       atualizarInterfaceCidade();
+    }
+
+    function preencherCidadesDoModal(ufSelecionada, cidadeIdSelecionada) {
+      const selCidadeModal = document.getElementById('auth-cid-cidade');
+      if (!selCidadeModal) return;
+      const ufNorm = (ufSelecionada || estadoAtual || 'ES').trim().toUpperCase();
+      const cidades = prefeituras
+        .filter(p => (p.uf || 'ES').trim().toUpperCase() === ufNorm)
+        .sort((a, b) => a.cidade.localeCompare(b.cidade));
+
+      selCidadeModal.innerHTML = cidades.map(p => `
+        <option value="${p.id}" ${p.id === cidadeIdSelecionada ? 'selected' : ''}>
+          ${p.cidade} - ${p.uf}
+        </option>
+      `).join('');
+    }
+
+    function aoTrocarEstadoModal(uf) {
+      const ufNorm = (uf || 'ES').trim().toUpperCase();
+      const primeira = prefeituras
+        .filter(p => (p.uf || 'ES').trim().toUpperCase() === ufNorm)
+        .sort((a, b) => a.cidade.localeCompare(b.cidade))[0];
+      preencherCidadesDoModal(ufNorm, primeira ? primeira.id : null);
+    }
+
+    function aoTrocarEstado(uf) {
+      const ufNorm = (uf || 'ES').trim().toUpperCase();
+      const cidadesDoEstado = prefeituras
+        .filter(p => (p.uf || 'ES').trim().toUpperCase() === ufNorm)
+        .sort((a, b) => a.cidade.localeCompare(b.cidade));
+
+      if (cidadesDoEstado.length === 0) return;
+
+      estadoAtual = ufNorm;
+      localStorage.setItem('conecta_estado_uf', estadoAtual);
+
+      // Se a prefeitura atual não for deste estado, seleciona a primeira cidade do estado
+      if ((prefeituraAtual.uf || 'ES').trim().toUpperCase() !== estadoAtual) {
+        prefeituraAtual = cidadesDoEstado[0];
+        localStorage.setItem('conecta_cidade_id', prefeituraAtual.id);
+      }
+
+      preencherSelectsCidades();
+      carregarDadosDaPrefeituraAtual();
     }
 
     async function carregarCidadesDoBanco() {
       try {
-        const { data, error } = await supabaseClient.from('prefeituras').select('*').order('cidade');
+        const { data, error } = await supabaseClient.from('prefeituras').select('*').order('uf').order('cidade');
         if (!error && data && data.length > 0) {
           prefeituras = data.map(dbP => {
-            const local = CIDADES_SUL_ES.find(c => c.cidade.toLowerCase() === dbP.cidade.toLowerCase());
+            const ufNorm = (dbP.uf || 'ES').trim().toUpperCase();
+            const local = CIDADES_SUL_ES.find(c => c.cidade.toLowerCase() === (dbP.cidade || '').toLowerCase() && c.uf === ufNorm);
             return {
               ...dbP,
-              lat: local?.lat || -20.8489,
-              lng: local?.lng || -41.1128,
+              uf: ufNorm,
+              lat: dbP.lat ?? local?.lat ?? -20.8489,
+              lng: dbP.lng ?? local?.lng ?? -41.1128,
               brasao_url: dbP.brasao_url || local?.brasao_url
             };
           });
           const savedCidadeId = localStorage.getItem('conecta_cidade_id');
           if (savedCidadeId) {
             const achada = prefeituras.find(p => p.id === savedCidadeId);
-            if (achada) prefeituraAtual = achada;
+            if (achada) {
+              prefeituraAtual = achada;
+              estadoAtual = achada.uf;
+            }
+          } else {
+            const achada = prefeituras.find(p => p.id === prefeituraAtual.id) || prefeituras[0];
+            if (achada) {
+              prefeituraAtual = achada;
+              estadoAtual = achada.uf;
+            }
           }
           preencherSelectsCidades();
         }
       } catch (e) {
-        console.warn('Usando dataset do Sul do ES:', e);
+        console.warn('Usando dataset local de municípios:', e);
       }
 
       await carregarDadosDaPrefeituraAtual();
@@ -565,19 +722,28 @@
     function aoTrocarCidade(cidadeId) {
       const encontrada = prefeituras.find(p => p.id === cidadeId);
       if (encontrada) {
+        const mudouEstado = (encontrada.uf || 'ES').trim().toUpperCase() !== estadoAtual;
         prefeituraAtual = encontrada;
+        estadoAtual = (encontrada.uf || 'ES').trim().toUpperCase();
         localStorage.setItem('conecta_cidade_id', prefeituraAtual.id);
+        localStorage.setItem('conecta_estado_uf', estadoAtual);
 
-        document.querySelectorAll('#select-cidade-topo, #select-cidade-app, #auth-cid-cidade')
-          .forEach(sel => { if (sel) sel.value = prefeituraAtual.id; });
+        if (mudouEstado) {
+          preencherSelectsCidades();
+        } else {
+          document.querySelectorAll('#select-cidade-topo, #select-cidade-app')
+            .forEach(sel => { if (sel) sel.value = prefeituraAtual.id; });
+          atualizarInterfaceCidade();
+        }
 
-        atualizarInterfaceCidade();
         carregarDadosDaPrefeituraAtual();
       }
     }
 
     function atualizarInterfaceCidade() {
       const brasao = prefeituraAtual.brasao_url || 'https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=100';
+      const uf = (prefeituraAtual.uf || estadoAtual || 'ES').trim().toUpperCase();
+      const nomeEstado = obterNomeEstado(uf);
 
       const headerBrasao = document.getElementById('header-brasao-img');
       if (headerBrasao) headerBrasao.src = brasao;
@@ -587,6 +753,15 @@
 
       const appNome = document.getElementById('app-prefeitura-nome');
       if (appNome) appNome.innerText = prefeituraAtual.nome || `Prefeitura de ${prefeituraAtual.cidade}`;
+
+      const appEstadoSub = document.getElementById('app-estado-subtitulo');
+      if (appEstadoSub) appEstadoSub.innerText = `${nomeEstado.toUpperCase()} • ${uf}`;
+
+      const lblEstadoAtivo = document.getElementById('lbl-estado-ativo-app');
+      if (lblEstadoAtivo) lblEstadoAtivo.innerText = `${nomeEstado} - ${uf}`;
+
+      const headerSub = document.getElementById('header-subtitulo-regiao');
+      if (headerSub) headerSub.innerText = `${nomeEstado} (${uf}) • Gestão Municipal Digital`;
 
       if (mapaLeaflet && prefeituraAtual.lat && prefeituraAtual.lng) {
         mapaLeaflet.setView([prefeituraAtual.lat, prefeituraAtual.lng], 14);
@@ -687,14 +862,17 @@
         document.getElementById('auth-cid-email').value = cidadaoLogado.email || '';
       }
 
+      const selectEstado = document.getElementById('auth-cid-estado');
       const selectCidade = document.getElementById('auth-cid-cidade');
       if (selectCidade) {
+        let prefAlvo = prefeituraAtual;
         if (cidadaoLogado && cidadaoLogado.cidade) {
           const matchCidade = prefeituras.find(p => p.cidade.toLowerCase() === cidadaoLogado.cidade.toLowerCase());
-          selectCidade.value = matchCidade ? matchCidade.id : prefeituraAtual.id;
-        } else {
-          selectCidade.value = prefeituraAtual.id;
+          if (matchCidade) prefAlvo = matchCidade;
         }
+        const ufAlvo = (prefAlvo.uf || estadoAtual || 'ES').trim().toUpperCase();
+        if (selectEstado) selectEstado.value = ufAlvo;
+        preencherCidadesDoModal(ufAlvo, prefAlvo.id);
       }
 
       const nomeServ = s ? s.nome : 'Serviço Municipal';
@@ -893,20 +1071,21 @@
       }
 
       const cidade = prefeituraAtual.cidade;
+      const ufCidade = (prefeituraAtual.uf || estadoAtual || 'ES').trim().toUpperCase();
       const cleanRua = rua.replace(/^(rua|r\.|av\.|avenida|travessa|tv\.|alameda|rodovia|praça|praca)\s+/i, '').trim();
 
       // Fila de tentativas da mais específica para a mais tolerante
       const tentativas = [];
       if (num) {
-        tentativas.push(`${rua} ${num}, ${bairro ? bairro + ', ' : ''}${cidade}, ES, Brasil`);
-        tentativas.push(`${rua}, ${num}, ${cidade}, ES, Brasil`);
+        tentativas.push(`${rua} ${num}, ${bairro ? bairro + ', ' : ''}${cidade}, ${ufCidade}, Brasil`);
+        tentativas.push(`${rua}, ${num}, ${cidade}, ${ufCidade}, Brasil`);
       }
       if (bairro) {
-        tentativas.push(`${rua}, ${bairro}, ${cidade}, ES, Brasil`);
+        tentativas.push(`${rua}, ${bairro}, ${cidade}, ${ufCidade}, Brasil`);
       }
-      tentativas.push(`${rua}, ${cidade}, ES, Brasil`);
+      tentativas.push(`${rua}, ${cidade}, ${ufCidade}, Brasil`);
       if (cleanRua.length > 2 && cleanRua.toLowerCase() !== rua.toLowerCase()) {
-        tentativas.push(`${cleanRua}, ${cidade}, ES, Brasil`);
+        tentativas.push(`${cleanRua}, ${cidade}, ${ufCidade}, Brasil`);
       }
 
       let resultados = [];
@@ -962,7 +1141,7 @@
       } else {
         // Tenta pelo bairro ou cidade para aproximar
         try {
-          const qFallback = bairro ? `${bairro}, ${cidade}, ES, Brasil` : `${cidade}, ES, Brasil`;
+          const qFallback = bairro ? `${bairro}, ${cidade}, ${ufCidade}, Brasil` : `${cidade}, ${ufCidade}, Brasil`;
           const resF = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(qFallback)}&countrycodes=br&limit=1`, {
             headers: { 'User-Agent': 'ConectaPrefeituraSaaS/2.0' }
           });
@@ -1183,7 +1362,7 @@
       }
 
       // Salva apenas os dados do perfil do cidadão para auto-preenchimento
-      cidadaoLogado = { nome: nomeCid, cpf: cpfCid, tel: telCid, cidade: prefeituraAtual.cidade, uf: 'ES' };
+      cidadaoLogado = { nome: nomeCid, cpf: cpfCid, tel: telCid, cidade: prefeituraAtual.cidade, uf: (prefeituraAtual.uf || estadoAtual || 'ES').trim().toUpperCase() };
       localStorage.setItem('conecta_cidadao', JSON.stringify(cidadaoLogado));
       atualizarBadgeCidadao();
 
@@ -1412,7 +1591,7 @@
               </span>
             </div>
             <p class="text-xs text-slate-600">Protocolo #${sol.protocolo} | Código Público: <strong>${sol.protocolo_publico || '---'}</strong></p>
-            <p class="text-xs text-slate-600">🏛️ Município: ${sol.cidade || prefeituraAtual.cidade} - ${sol.uf || 'ES'} ${dataFormatada ? ' • ' + dataFormatada : ''}</p>
+            <p class="text-xs text-slate-600">🏛️ Município: ${sol.cidade || prefeituraAtual.cidade} - ${sol.uf || prefeituraAtual.uf || 'ES'} ${dataFormatada ? ' • ' + dataFormatada : ''}</p>
             ${sol.endereco_gps ? `<p class="text-xs text-slate-700">📍 <strong>Local:</strong> ${sol.endereco_gps}</p>` : ''}
             ${sol.resposta_prefeitura ? `<div class="bg-blue-50 p-2.5 rounded-xl text-blue-950 font-medium border border-blue-200 text-xs">💬 <strong>Situação Oficial:</strong><br>${sol.resposta_prefeitura}</div>` : ''}
           </div>
@@ -1459,7 +1638,7 @@
         const saudacao = document.getElementById('app-saudacao-cidadao');
         if (saudacao) saudacao.innerText = `Olá, ${primeiroNome}!`;
         const cidMorador = document.getElementById('app-cidade-cidadao');
-        if (cidMorador) cidMorador.innerText = `Morador(a) de ${cidadaoLogado.cidade || prefeituraAtual.cidade} - ES`;
+        if (cidMorador) cidMorador.innerText = `Morador(a) de ${cidadaoLogado.cidade || prefeituraAtual.cidade} - ${cidadaoLogado.uf || prefeituraAtual.uf || 'ES'}`;
         const filtroCpf = document.getElementById('filtro-cpf-cidadao');
         if (filtroCpf && !filtroCpf.value) filtroCpf.value = cidadaoLogado.cpf || '';
       }
@@ -1474,14 +1653,17 @@
         document.getElementById('auth-cid-email').value = cidadaoLogado.email || '';
       }
 
+      const selectEstado = document.getElementById('auth-cid-estado');
       const selectCidade = document.getElementById('auth-cid-cidade');
       if (selectCidade) {
+        let prefAlvo = prefeituraAtual;
         if (cidadaoLogado && cidadaoLogado.cidade) {
           const matchCidade = prefeituras.find(p => p.cidade.toLowerCase() === cidadaoLogado.cidade.toLowerCase());
-          selectCidade.value = matchCidade ? matchCidade.id : prefeituraAtual.id;
-        } else {
-          selectCidade.value = prefeituraAtual.id;
+          if (matchCidade) prefAlvo = matchCidade;
         }
+        const ufAlvo = (prefAlvo.uf || estadoAtual || 'ES').trim().toUpperCase();
+        if (selectEstado) selectEstado.value = ufAlvo;
+        preencherCidadesDoModal(ufAlvo, prefAlvo.id);
       }
 
       const titulo = document.getElementById('titulo-modal-auth');
@@ -1521,7 +1703,7 @@
         tel: tel, 
         email: email, 
         cidade: prefEscolhida.cidade, 
-        uf: 'ES' 
+        uf: (prefEscolhida.uf || estadoAtual || 'ES').trim().toUpperCase()
       };
       localStorage.setItem('conecta_cidadao', JSON.stringify(cidadaoLogado));
 

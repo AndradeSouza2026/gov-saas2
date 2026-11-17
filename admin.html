@@ -31,7 +31,7 @@
           🏛️
         </div>
         <h1 class="text-2xl font-black text-white tracking-tight">ConectaPrefeitura</h1>
-        <p class="text-xs text-blue-400 font-semibold uppercase tracking-wider">Painel de Gestão Municipal • Sul do ES</p>
+        <p class="text-xs text-blue-400 font-semibold uppercase tracking-wider">Painel de Gestão Municipal • Multi-Estados</p>
         <p class="text-xs text-slate-400">Acesso exclusivo para servidores e administradores autorizados.</p>
       </div>
 
@@ -80,14 +80,21 @@
           </div>
         </div>
 
-        <!-- Seletor Multi-Cidades (Exclusivo para SUPER_ADMIN) -->
-        <div id="bloco-superadmin-cidades" class="hidden flex items-center gap-2 bg-slate-950 border border-amber-500/40 px-3 py-1.5 rounded-2xl shadow-inner">
+        <!-- Seletor Multi-Estados e Multi-Cidades (Exclusivo para SUPER_ADMIN) -->
+        <div id="bloco-superadmin-cidades" class="hidden flex flex-wrap items-center gap-2.5 bg-slate-950 border border-amber-500/40 px-3 py-1.5 rounded-2xl shadow-inner">
           <span class="text-base">👑</span>
+          <div class="border-r border-slate-800 pr-2.5">
+            <label class="block text-[9px] font-black text-amber-400 uppercase tracking-wider">🗺️ Estado (UF):</label>
+            <select id="superadmin-select-uf" onchange="aoTrocarUfSuperAdmin(this.value)"
+                    class="bg-transparent text-white text-xs font-bold outline-none cursor-pointer">
+              <option value="TODOS" class="bg-slate-900 text-white">Todos (UF)</option>
+            </select>
+          </div>
           <div>
             <label class="block text-[9px] font-black text-amber-400 uppercase tracking-wider">Super Admin • Mudar Município:</label>
             <select id="superadmin-select-prefeitura" onchange="trocarPrefeituraSuperAdmin(this.value)" 
                     class="bg-transparent text-white text-xs font-bold outline-none cursor-pointer">
-              <!-- As 27 cidades serão preenchidas dinamicamente -->
+              <!-- Cidades agrupadas dinamicamente por Estado -->
             </select>
           </div>
         </div>
@@ -333,6 +340,14 @@
             </button>
           </div>
 
+          <!-- Abas de Divisão por Estado (UF) -->
+          <div class="pt-1 border-t border-slate-800/80">
+            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">🗺️ Filtrar por Estado (UF):</p>
+            <div id="abas-estados-prefeituras" class="flex flex-wrap gap-2">
+              <!-- Abas geradas dinamicamente conforme estados cadastrados -->
+            </div>
+          </div>
+
           <!-- Filtro de Busca das Cidades -->
           <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
             <div class="relative flex-1 min-w-[240px]">
@@ -346,9 +361,9 @@
             </div>
           </div>
 
-          <!-- Grid de Cards de Prefeituras -->
-          <div id="grid-prefeituras-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-2">
-            <div class="text-center py-12 col-span-full text-slate-500 text-xs">
+          <!-- Container Agrupado por Estado -->
+          <div id="grid-prefeituras-container" class="space-y-6 pt-2">
+            <div class="text-center py-12 text-slate-500 text-xs">
               <span class="animate-spin inline-block mr-1">⏳</span> Carregando municípios cadastrados...
             </div>
           </div>
@@ -849,9 +864,37 @@
                    class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500">
           </div>
           <div>
-            <label class="block text-xs font-bold text-slate-300 mb-1">UF *</label>
-            <input type="text" id="np-uf" required value="ES" maxlength="2" 
-                   class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 uppercase">
+            <label class="block text-xs font-bold text-slate-300 mb-1">Estado (UF) *</label>
+            <select id="np-uf" required
+                    class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 uppercase cursor-pointer">
+              <option value="AC">AC - Acre</option>
+              <option value="AL">AL - Alagoas</option>
+              <option value="AP">AP - Amapá</option>
+              <option value="AM">AM - Amazonas</option>
+              <option value="BA">BA - Bahia</option>
+              <option value="CE">CE - Ceará</option>
+              <option value="DF">DF - Distrito Federal</option>
+              <option value="ES" selected>ES - Espírito Santo</option>
+              <option value="GO">GO - Goiás</option>
+              <option value="MA">MA - Maranhão</option>
+              <option value="MT">MT - Mato Grosso</option>
+              <option value="MS">MS - Mato Grosso do Sul</option>
+              <option value="MG">MG - Minas Gerais</option>
+              <option value="PA">PA - Pará</option>
+              <option value="PB">PB - Paraíba</option>
+              <option value="PR">PR - Paraná</option>
+              <option value="PE">PE - Pernambuco</option>
+              <option value="PI">PI - Piauí</option>
+              <option value="RJ">RJ - Rio de Janeiro</option>
+              <option value="RN">RN - Rio Grande do Norte</option>
+              <option value="RS">RS - Rio Grande do Sul</option>
+              <option value="RO">RO - Rondônia</option>
+              <option value="RR">RR - Roraima</option>
+              <option value="SC">SC - Santa Catarina</option>
+              <option value="SP">SP - São Paulo</option>
+              <option value="SE">SE - Sergipe</option>
+              <option value="TO">TO - Tocantins</option>
+            </select>
           </div>
         </div>
 
@@ -962,41 +1005,129 @@
       }
     }
 
-    let listaTodasPrefeituras = [];
+    const ESTADOS_BRASIL = {
+      AC: 'Acre', AL: 'Alagoas', AP: 'Amapá', AM: 'Amazonas', BA: 'Bahia',
+      CE: 'Ceará', DF: 'Distrito Federal', ES: 'Espírito Santo', GO: 'Goiás',
+      MA: 'Maranhão', MT: 'Mato Grosso', MS: 'Mato Grosso do Sul', MG: 'Minas Gerais',
+      PA: 'Pará', PB: 'Paraíba', PR: 'Paraná', PE: 'Pernambuco', PI: 'Piauí',
+      RJ: 'Rio de Janeiro', RN: 'Rio Grande do Norte', RS: 'Rio Grande do Sul',
+      RO: 'Rondônia', RR: 'Roraima', SC: 'Santa Catarina', SP: 'São Paulo',
+      SE: 'Sergipe', TO: 'Tocantins'
+    };
 
-    async function carregarSeletorSuperAdmin() {
-      if (listaTodasPrefeituras.length === 0) {
-        const { data } = await sb.from('prefeituras').select('*').order('cidade');
+    function obterNomeEstado(uf) {
+      const sigla = (uf || 'ES').trim().toUpperCase();
+      return ESTADOS_BRASIL[sigla] || sigla;
+    }
+
+    let listaTodasPrefeituras = [];
+    let filtroEstadoPrefeituras = 'TODOS';
+    let filtroUfSuperAdmin = 'TODOS';
+
+    async function carregarSeletorSuperAdmin(forcarRecarga = false) {
+      if (forcarRecarga || listaTodasPrefeituras.length === 0) {
+        const { data } = await sb.from('prefeituras').select('*').order('uf').order('cidade');
         if (data && data.length > 0) {
-          listaTodasPrefeituras = data;
+          listaTodasPrefeituras = data.map(p => ({ ...p, uf: (p.uf || 'ES').trim().toUpperCase() }));
         }
       }
 
+      // Popular seletor de Estado (UF) do Super Admin
+      const selUf = document.getElementById('superadmin-select-uf');
+      const contagemPorUf = {};
+      listaTodasPrefeituras.forEach(p => {
+        const uf = (p.uf || 'ES').trim().toUpperCase();
+        contagemPorUf[uf] = (contagemPorUf[uf] || 0) + 1;
+      });
+      const ufsOrdenadas = Object.keys(contagemPorUf).sort();
+
+      if (filtroUfSuperAdmin !== 'TODOS' && !contagemPorUf[filtroUfSuperAdmin]) {
+        filtroUfSuperAdmin = 'TODOS';
+      }
+
+      if (selUf) {
+        let htmlUf = `<option value="TODOS" ${filtroUfSuperAdmin === 'TODOS' ? 'selected' : ''} class="bg-slate-900 text-white">Todos (${ufsOrdenadas.length} UFs)</option>`;
+        htmlUf += ufsOrdenadas.map(uf => `
+          <option value="${uf}" ${filtroUfSuperAdmin === uf ? 'selected' : ''} class="bg-slate-900 text-white">
+            ${uf} (${contagemPorUf[uf]})
+          </option>
+        `).join('');
+        selUf.innerHTML = htmlUf;
+      }
+
+      preencherSelectPrefeiturasSuperAdmin();
+    }
+
+    function preencherSelectPrefeiturasSuperAdmin() {
       const sel = document.getElementById('superadmin-select-prefeitura');
       if (!sel) return;
 
-      let html = `<option value="TODAS" ${prefeituraAtual?.id === 'TODAS' ? 'selected' : ''}>🌐 Todas as 27 Cidades (Visão Geral Multi-Prefeituras)</option>`;
-      html += listaTodasPrefeituras.map(p => `
-        <option value="${p.id}" ${p.id === prefeituraAtual?.id ? 'selected' : ''} class="bg-slate-900 text-white font-medium">
-          🏛️ ${p.cidade} (${p.uf || 'ES'})
-        </option>
-      `).join('');
+      const filtradas = filtroUfSuperAdmin === 'TODOS'
+        ? listaTodasPrefeituras
+        : listaTodasPrefeituras.filter(p => (p.uf || 'ES').trim().toUpperCase() === filtroUfSuperAdmin);
+
+      // Agrupar por UF
+      const grupos = {};
+      filtradas.forEach(p => {
+        const uf = (p.uf || 'ES').trim().toUpperCase();
+        if (!grupos[uf]) grupos[uf] = [];
+        grupos[uf].push(p);
+      });
+
+      const ufs = Object.keys(grupos).sort();
+      const labelTodas = filtroUfSuperAdmin === 'TODOS'
+        ? `🌐 Todas as ${listaTodasPrefeituras.length} Cidades (${Object.keys(listaTodasPrefeituras.reduce((acc, p) => { acc[(p.uf || 'ES').toUpperCase()] = true; return acc; }, {})).length} Estados)`
+        : `🌐 Todas de ${obterNomeEstado(filtroUfSuperAdmin)} (${filtradas.length})`;
+
+      let html = `<option value="TODAS" ${prefeituraAtual?.id === 'TODAS' ? 'selected' : ''} class="bg-slate-900 text-white font-bold">${labelTodas}</option>`;
+
+      ufs.forEach(uf => {
+        const cidades = grupos[uf].sort((a, b) => a.cidade.localeCompare(b.cidade));
+        html += `<optgroup label="📍 ${obterNomeEstado(uf)} (${uf}) — ${cidades.length}" class="bg-slate-950 text-amber-300 font-bold">`;
+        html += cidades.map(p => `
+          <option value="${p.id}" ${p.id === prefeituraAtual?.id ? 'selected' : ''} class="bg-slate-900 text-white font-medium">
+            🏛️ ${p.cidade} (${uf})
+          </option>
+        `).join('');
+        html += `</optgroup>`;
+      });
 
       sel.innerHTML = html;
+    }
+
+    async function aoTrocarUfSuperAdmin(uf) {
+      filtroUfSuperAdmin = uf || 'TODOS';
+      preencherSelectPrefeiturasSuperAdmin();
+
+      if (filtroUfSuperAdmin !== 'TODOS') {
+        const cidadesDoEstado = listaTodasPrefeituras
+          .filter(p => (p.uf || 'ES').trim().toUpperCase() === filtroUfSuperAdmin)
+          .sort((a, b) => a.cidade.localeCompare(b.cidade));
+        if (cidadesDoEstado.length > 0 && (!prefeituraAtual || prefeituraAtual.id === 'TODAS' || (prefeituraAtual.uf || 'ES').toUpperCase() !== filtroUfSuperAdmin)) {
+          await trocarPrefeituraSuperAdmin(cidadesDoEstado[0].id);
+        }
+      }
     }
 
     async function trocarPrefeituraSuperAdmin(prefId) {
       if (prefId === 'TODAS') {
         prefeituraAtual = {
           id: 'TODAS',
-          nome: 'ConectaPrefeitura - Todas as 27 Cidades',
-          cidade: 'Todas as Cidades do Sul do ES',
+          nome: `ConectaPrefeitura - Todas as ${listaTodasPrefeituras.length} Cidades`,
+          cidade: 'Todas as Cidades Conectadas',
           brasao_url: 'https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=120'
         };
       } else {
         const novaPref = listaTodasPrefeituras.find(p => p.id === prefId);
         if (!novaPref) return;
         prefeituraAtual = novaPref;
+        const ufNova = (novaPref.uf || 'ES').trim().toUpperCase();
+        if (filtroUfSuperAdmin !== 'TODOS' && filtroUfSuperAdmin !== ufNova) {
+          filtroUfSuperAdmin = ufNova;
+          const selUf = document.getElementById('superadmin-select-uf');
+          if (selUf) selUf.value = ufNova;
+          preencherSelectPrefeiturasSuperAdmin();
+        }
       }
 
       document.querySelectorAll('.cidade-nome-txt').forEach(el => el.innerText = prefeituraAtual.cidade);
@@ -2397,15 +2528,70 @@
     }
 
     // ==============================================================================
-    // 11. ABA PREFEITURAS (SUPER_ADMIN)
+    // 11. ABA PREFEITURAS (SUPER_ADMIN) — SEPARADAS POR ESTADO (UF)
     // ==============================================================================
     async function carregarPrefeituras() {
-      const { data, error } = await sb.from('prefeituras').select('*').order('cidade');
+      const { data, error } = await sb.from('prefeituras').select('*').order('uf').order('cidade');
 
       if (!error && data) {
-        listaTodasPrefeituras = data;
-        renderizarGridPrefeituras(data);
+        listaTodasPrefeituras = data.map(p => ({ ...p, uf: (p.uf || 'ES').trim().toUpperCase() }));
+        renderizarAbasEstadosPrefeituras();
+        filtrarListaPrefeituras();
       }
+    }
+
+    function renderizarAbasEstadosPrefeituras() {
+      const container = document.getElementById('abas-estados-prefeituras');
+      if (!container) return;
+
+      const contagemPorUf = {};
+      listaTodasPrefeituras.forEach(p => {
+        const uf = (p.uf || 'ES').trim().toUpperCase();
+        contagemPorUf[uf] = (contagemPorUf[uf] || 0) + 1;
+      });
+      const ufs = Object.keys(contagemPorUf).sort();
+
+      if (filtroEstadoPrefeituras !== 'TODOS' && !contagemPorUf[filtroEstadoPrefeituras]) {
+        filtroEstadoPrefeituras = 'TODOS';
+      }
+
+      const ativoTodos = filtroEstadoPrefeituras === 'TODOS';
+      let html = `
+        <button type="button" onclick="selecionarAbaEstadoPrefeituras('TODOS')"
+                class="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border ${
+                  ativoTodos
+                    ? 'bg-blue-600 text-white border-blue-500 shadow-md'
+                    : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700 hover:text-white'
+                }">
+          <span>🌐</span>
+          <span>Todos os Estados</span>
+          <span class="text-[10px] px-1.5 py-0.2 rounded-full ${ativoTodos ? 'bg-blue-800 text-blue-100' : 'bg-slate-800 text-slate-400'}">${listaTodasPrefeituras.length}</span>
+        </button>
+      `;
+
+      html += ufs.map(uf => {
+        const ativo = filtroEstadoPrefeituras === uf;
+        return `
+          <button type="button" onclick="selecionarAbaEstadoPrefeituras('${uf}')"
+                  class="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border ${
+                    ativo
+                      ? 'bg-blue-600 text-white border-blue-500 shadow-md'
+                      : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700 hover:text-white'
+                  }">
+            <span>📍</span>
+            <span>${uf} — ${obterNomeEstado(uf)}</span>
+            <span class="text-[10px] px-1.5 py-0.2 rounded-full ${ativo ? 'bg-blue-800 text-blue-100' : 'bg-slate-800 text-slate-400'}">${contagemPorUf[uf]}</span>
+          </button>
+        `;
+      }).join('');
+
+      container.innerHTML = html;
+    }
+
+    function selecionarAbaEstadoPrefeituras(uf) {
+      filtroEstadoPrefeituras = uf || 'TODOS';
+      renderizarAbasEstadosPrefeituras();
+      filtrarListaPrefeituras();
     }
 
     function renderizarGridPrefeituras(lista) {
@@ -2415,59 +2601,92 @@
       if (lblTotal) lblTotal.innerText = lista.length;
 
       if (!lista || lista.length === 0) {
-        container.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500 text-xs">Nenhum município cadastrado.</div>`;
+        container.innerHTML = `<div class="text-center py-12 text-slate-500 text-xs">Nenhum município cadastrado neste filtro.</div>`;
         return;
       }
 
-      container.innerHTML = lista.map(p => `
-        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between space-y-3 hover:border-slate-700 transition shadow-sm">
-          <div class="flex items-start gap-3">
-            <img src="${p.brasao_url || 'https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=80'}" 
-                 class="w-11 h-11 rounded-xl object-cover bg-slate-900 border border-slate-800 flex-shrink-0"
-                 onerror="this.src='https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=80'">
-            <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-2">
-                <h4 class="text-xs font-bold text-white truncate">${p.cidade}</h4>
-                <span class="text-[9px] font-black px-1.5 py-0.2 rounded bg-blue-900/40 text-blue-300 border border-blue-800">${p.uf || 'ES'}</span>
+      // Agrupar municípios por Estado (UF)
+      const grupos = {};
+      lista.forEach(p => {
+        const uf = (p.uf || 'ES').trim().toUpperCase();
+        if (!grupos[uf]) grupos[uf] = [];
+        grupos[uf].push(p);
+      });
+
+      const ufsOrdenadas = Object.keys(grupos).sort();
+
+      container.innerHTML = ufsOrdenadas.map(uf => {
+        const cidades = grupos[uf].sort((a, b) => (a.cidade || '').localeCompare(b.cidade || ''));
+        const cardsHtml = cidades.map(p => `
+          <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between space-y-3 hover:border-slate-700 transition shadow-sm">
+            <div class="flex items-start gap-3">
+              <img src="${p.brasao_url || 'https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=80'}" 
+                   class="w-11 h-11 rounded-xl object-cover bg-slate-900 border border-slate-800 flex-shrink-0"
+                   onerror="this.src='https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=80'">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <h4 class="text-xs font-bold text-white truncate">${p.cidade}</h4>
+                  <span class="text-[9px] font-black px-1.5 py-0.2 rounded bg-blue-900/40 text-blue-300 border border-blue-800">${uf}</span>
+                </div>
+                <p class="text-[11px] text-slate-400 truncate mt-0.5">${p.nome || `Prefeitura Municipal de ${p.cidade}`}</p>
+                <p class="text-[10px] text-slate-500 font-mono mt-1">📍 ${p.lat && p.lng ? `${p.lat}, ${p.lng}` : 'GPS não informado'}</p>
               </div>
-              <p class="text-[11px] text-slate-400 truncate mt-0.5">${p.nome || `Prefeitura Municipal de ${p.cidade}`}</p>
-              <p class="text-[10px] text-slate-500 font-mono mt-1">📍 ${p.lat && p.lng ? `${p.lat}, ${p.lng}` : 'GPS não informado'}</p>
+            </div>
+
+            <div class="pt-2 border-t border-slate-900 flex items-center justify-between gap-2">
+              <button onclick="acessarPrefeituraPeloPainel('${p.id}')" 
+                      class="flex-1 bg-blue-600/20 hover:bg-blue-600 border border-blue-500/40 hover:border-blue-500 text-blue-300 hover:text-white font-bold text-[11px] py-1.5 px-2.5 rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm">
+                <span>👁️</span> <span>Acessar Painel</span>
+              </button>
+              <button onclick="excluirPrefeituraAdmin('${p.id}', '${(p.cidade || '').replace(/'/g, "\\'")}')" 
+                      class="bg-rose-950/40 hover:bg-rose-900 border border-rose-800/60 hover:border-rose-700 text-rose-300 hover:text-white font-bold text-[11px] py-1.5 px-2.5 rounded-xl transition flex items-center justify-center gap-1"
+                      title="Excluir prefeitura permanentemente">
+                <span>🗑️</span>
+              </button>
             </div>
           </div>
+        `).join('');
 
-          <div class="pt-2 border-t border-slate-900 flex items-center justify-between gap-2">
-            <button onclick="acessarPrefeituraPeloPainel('${p.id}')" 
-                    class="flex-1 bg-blue-600/20 hover:bg-blue-600 border border-blue-500/40 hover:border-blue-500 text-blue-300 hover:text-white font-bold text-[11px] py-1.5 px-2.5 rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm">
-              <span>👁️</span> <span>Acessar Painel</span>
-            </button>
-            <button onclick="excluirPrefeituraAdmin('${p.id}', '${p.cidade.replace(/'/g, "\\'")}')" 
-                    class="bg-rose-950/40 hover:bg-rose-900 border border-rose-800/60 hover:border-rose-700 text-rose-300 hover:text-white font-bold text-[11px] py-1.5 px-2.5 rounded-xl transition flex items-center justify-center gap-1"
-                    title="Excluir prefeitura permanentemente">
-              <span>🗑️</span>
-            </button>
+        return `
+          <div class="space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-black px-2.5 py-1 rounded-lg bg-blue-900/50 text-blue-300 border border-blue-700/60">${uf}</span>
+                <h4 class="text-sm font-black text-white">${obterNomeEstado(uf)}</h4>
+              </div>
+              <span class="text-[11px] font-bold text-slate-400 bg-slate-950 px-2.5 py-0.5 rounded-full border border-slate-800">
+                ${cidades.length} ${cidades.length === 1 ? 'município' : 'municípios'}
+              </span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              ${cardsHtml}
+            </div>
           </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     function filtrarListaPrefeituras() {
       const termo = (document.getElementById('filtro-busca-prefeituras')?.value || '').toLowerCase().trim();
-      if (!termo) {
-        renderizarGridPrefeituras(listaTodasPrefeituras);
-        return;
-      }
-      const filtradas = listaTodasPrefeituras.filter(p => 
-        (p.cidade && p.cidade.toLowerCase().includes(termo)) ||
-        (p.nome && p.nome.toLowerCase().includes(termo)) ||
-        (p.uf && p.uf.toLowerCase().includes(termo))
-      );
+      const filtradas = listaTodasPrefeituras.filter(p => {
+        const uf = (p.uf || 'ES').trim().toUpperCase();
+        const matchEstado = filtroEstadoPrefeituras === 'TODOS' || uf === filtroEstadoPrefeituras;
+        if (!matchEstado) return false;
+        if (!termo) return true;
+        return (
+          (p.cidade && p.cidade.toLowerCase().includes(termo)) ||
+          (p.nome && p.nome.toLowerCase().includes(termo)) ||
+          uf.toLowerCase().includes(termo) ||
+          obterNomeEstado(uf).toLowerCase().includes(termo)
+        );
+      });
       renderizarGridPrefeituras(filtradas);
     }
 
     function abrirModalNovaPrefeitura() {
       document.getElementById('np-nome').value = '';
       document.getElementById('np-cidade').value = '';
-      document.getElementById('np-uf').value = 'ES';
+      document.getElementById('np-uf').value = filtroEstadoPrefeituras !== 'TODOS' ? filtroEstadoPrefeituras : 'ES';
       document.getElementById('np-lat').value = '';
       document.getElementById('np-lng').value = '';
       document.getElementById('np-brasao').value = '';
@@ -2507,9 +2726,10 @@
         if (error) throw error;
 
         fecharModalNovaPrefeitura();
+        filtroEstadoPrefeituras = uf;
         await carregarPrefeituras();
-        await carregarSeletorSuperAdmin();
-        alert(`Prefeitura de ${cidade} cadastrada com sucesso! ${semear ? 'Secretarias e 17 serviços padrão foram instalados.' : ''}`);
+        await carregarSeletorSuperAdmin(true);
+        alert(`Prefeitura de ${cidade} (${uf}) cadastrada com sucesso! ${semear ? 'Secretarias e 17 serviços padrão foram instalados.' : ''}`);
       } catch (err) {
         console.error('Erro ao cadastrar prefeitura:', err);
         alert('Erro ao cadastrar prefeitura: ' + err.message);
@@ -2533,7 +2753,7 @@
         }
 
         await carregarPrefeituras();
-        await carregarSeletorSuperAdmin();
+        await carregarSeletorSuperAdmin(true);
         alert(`Prefeitura de ${prefNome} excluída com sucesso.`);
       } catch (err) {
         console.error('Erro ao excluir prefeitura:', err);
